@@ -1,0 +1,135 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ------------------------------------------------------
+// 1. BETTER-AUTH CORE MODELS (Required for Authentication)
+// ------------------------------------------------------
+
+model User {
+  id            String   @id @default(uuid())
+  name          String
+  email         String   @unique
+  emailVerified Boolean  @default(false)
+  image         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Custom Field: Differentiates Admin vs Volunteer
+  role Role @default(VOLUNTEER)
+
+  // Relations
+  sessions Session[]
+  accounts Account[]
+  scanLogs ScanLog[] // History of scans performed by this volunteer
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Account {
+  id                    String    @id @default(uuid())
+  userId                String
+  accountId             String
+  providerId            String
+  accessToken           String?
+  refreshToken          String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Verification {
+  id         String   @id @default(uuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+// ------------------------------------------------------
+// 2. FESTFOOD MANAGER DOMAIN MODELS
+// ------------------------------------------------------
+
+enum Role {
+  ADMIN
+  VOLUNTEER
+}
+
+enum ScanStatus {
+  SUCCESS
+  DUPLICATE
+  INVALID
+  MANUAL_OVERRIDE
+}
+
+// Represents a single person from your CSV Upload
+model Attendee {
+  id String @id @default(uuid())
+
+  // CSV Data Columns
+  name       String
+  university String
+  role       String // e.g., "Student", "Faculty", "External"
+  category   String // e.g., "Datathon", "Hackathon"
+
+  // Security & Logistics
+  qrToken     String    @unique // The exact string embedded in the PDF QR Code
+  foodClaimed Boolean   @default(false)
+  claimedAt   DateTime? // Exact time the food was handed out
+
+  // Relations
+  scanLogs ScanLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// The Audit Trail (Populates the Volunteer Dashboard and Admin Directory)
+model ScanLog {
+  id String @id @default(uuid())
+
+  // What was the result of this scan?
+  status ScanStatus
+
+  // Who performed the scan?
+  volunteerId String
+  volunteer   User   @relation(fields: [volunteerId], references: [id], onDelete: Cascade)
+
+  // Who was scanned? (Optional because an "INVALID" scan might not match an Attendee)
+  attendeeId String?
+  attendee   Attendee? @relation(fields: [attendeeId], references: [id], onDelete: SetNull)
+
+  // For debugging invalid QR codes
+  scannedToken String?
+
+  scannedAt DateTime @default(now())
+}
+
+// Singleton Table to hold Event-Wide Configurations (Screen 5 Inventory Override)
+model EventLogistics {
+  id             Int      @id @default(1) // Only one row will ever exist
+  totalAvailable Int      @default(0) // Admin can manually adjust this
+  updatedAt      DateTime @updatedAt
+}
