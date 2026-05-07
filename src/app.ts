@@ -3,6 +3,8 @@ import express, { Request, Response } from "express";
 import cors from "cors";
 import helmet from "helmet";
 import { prisma } from "./lib/prisma";
+import { toNodeHandler } from "better-auth/node";
+import { auth } from "./lib/auth";
 
 // Initialize instances
 const app = express();
@@ -11,6 +13,8 @@ const app = express();
 app.use(helmet());
 app.use(cors());
 app.use(express.json());
+
+app.all("/api/auth/{*any}", toNodeHandler(auth));
 
 // ------------------------------------------------------
 // ROUTES

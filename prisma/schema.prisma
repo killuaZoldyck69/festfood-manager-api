@@ -1,3 +1,4 @@
+
 generator client {
   provider = "prisma-client"
   output   = "../src/generated/prisma"
@@ -27,6 +28,8 @@ model User {
   sessions Session[]
   accounts Account[]
   scanLogs ScanLog[] // History of scans performed by this volunteer
+
+  @@map("user")
 }
 
 model Session {
@@ -40,6 +43,9 @@ model Session {
   updatedAt DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("session")
 }
 
 model Account {
@@ -56,7 +62,11 @@ model Account {
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  idToken String?
+
+  @@index([userId])
+  @@map("account")
 }
 
 model Verification {
@@ -66,6 +76,9 @@ model Verification {
   expiresAt  DateTime
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
 }
 
 // ------------------------------------------------------
@@ -85,6 +98,7 @@ enum ScanStatus {
 }
 
 // Represents a single person from your CSV Upload
+
 model Attendee {
   id String @id @default(uuid())
 
@@ -107,6 +121,7 @@ model Attendee {
 }
 
 // The Audit Trail (Populates the Volunteer Dashboard and Admin Directory)
+
 model ScanLog {
   id String @id @default(uuid())
 
@@ -128,6 +143,7 @@ model ScanLog {
 }
 
 // Singleton Table to hold Event-Wide Configurations (Screen 5 Inventory Override)
+
 model EventLogistics {
   id             Int      @id @default(1) // Only one row will ever exist
   totalAvailable Int      @default(0) // Admin can manually adjust this
