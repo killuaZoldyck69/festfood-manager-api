@@ -1,17 +1,23 @@
-// src/app.ts
 import express, { Request, Response } from "express";
 import cors from "cors";
 import helmet from "helmet";
 import { prisma } from "./lib/prisma";
 import { toNodeHandler } from "better-auth/node";
 import { auth } from "./lib/auth";
+import { scanRoutes } from "./modules/scan/scan.routes";
+import { inventoryRoutes } from "./modules/inventory/inventory.routes";
 
 // Initialize instances
 const app = express();
 
 // Global Middleware
 app.use(helmet());
-app.use(cors());
+app.use(
+  cors({
+    origin: ["http://192.168.0.102:8081", "http://localhost:8081"],
+    credentials: true,
+  }),
+);
 app.use(express.json());
 
 app.all("/api/auth/{*any}", toNodeHandler(auth));
@@ -36,8 +42,7 @@ app.get("/api/health", async (req: Request, res: Response) => {
   }
 });
 
-// Future routes will be mounted here
-// app.use('/api/auth', authMiddleware);
-// app.use('/api/scan', scanRouter);
+app.use("/api/scan", scanRoutes);
+app.use("/api/inventory", inventoryRoutes);
 
 export default app;

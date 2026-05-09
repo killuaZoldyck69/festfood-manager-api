@@ -2,6 +2,7 @@ import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { prisma } from "./prisma";
 import envConfig from "../shared/config/env";
+import { bearer } from "better-auth/plugins";
 
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
@@ -14,6 +15,7 @@ export const auth = betterAuth({
     enabled: true,
   },
 
+  plugins: [bearer()],
   user: {
     additionalFields: {
       role: {
