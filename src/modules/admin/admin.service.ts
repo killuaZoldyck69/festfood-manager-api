@@ -118,3 +118,89 @@ export const getAttendeesList = async (searchQuery?: string) => {
     };
   });
 };
+
+export const processManualOverride = async (
+  attendeeId: string,
+  adminId: string,
+) => {
+  // 1. Find the attendee
+  const attendee = await prisma.attendee.findUnique({
+    where: { id: attendeeId },
+  });
+
+  if (!attendee) {
+    return { status: 404, error: "Attendee not found." };
+  }
+
+  // 2. Check if already claimed
+  if (attendee.foodClaimed) {
+    return { status: 409, error: "Attendee has already claimed their food." };
+  }
+
+  // 3. Process the override atomically
+  const [updatedAttendee, log, inventory] = await prisma.$transaction([
+    // Mark as claimed
+    prisma.attendee.update({
+      where: { id: attendeeId },
+      data: { foodClaimed: true, claimedAt: new Date() },
+    }),
+    // Log the manual override
+    prisma.scanLog.create({
+      data: {
+        status: "MANUAL_OVERRIDE",
+        volunteerId: adminId, // The admin who clicked the button
+        attendeeId: attendee.id,
+        scannedToken: attendee.qrToken, // We log their token for traceability
+      },
+    }),
+    // Decrease the inventory safely
+    prisma.eventLogistics.updateMany({
+      where: { id: 1, totalAvailable: { gt: 0 } },
+      data: { totalAvailable: { decrement: 1 } },
+    }),
+  ]);
+
+  return { status: 200, attendee: updatedAttendee };
+};
+
+export const getSystemLogs = async (page: number, limit: number) => {
+  const skip = (page - 1) * limit;
+
+  // Run the count and the fetch simultaneously
+  const [totalLogs, rawLogs] = await Promise.all([
+    prisma.scanLog.count(),
+    prisma.scanLog.findMany({
+      skip: skip,
+      take: limit,
+      orderBy: { scannedAt: "desc" }, // Newest scans at the top!
+      include: {
+        volunteer: {
+          select: { name: true, role: true },
+        },
+        attendee: {
+          select: { name: true, university: true }, // We include this in case it was a SUCCESS or DUPLICATE
+        },
+      },
+    }),
+  ]);
+
+  // Flatten the response beautifully for the mobile app
+  const formattedLogs = rawLogs.map((log) => ({
+    id: log.id,
+    status: log.status,
+    scannedToken: log.scannedToken,
+    scannedAt: log.scannedAt,
+    volunteerName: log.volunteer?.name || "Unknown",
+    attendeeName: log.attendee?.name || null, // Will be null if it was a fake/INVALID ticket
+  }));
+
+  return {
+    meta: {
+      totalLogs,
+      currentPage: page,
+      totalPages: Math.ceil(totalLogs / limit),
+      hasMore: page * limit < totalLogs,
+    },
+    logs: formattedLogs,
+  };
+};

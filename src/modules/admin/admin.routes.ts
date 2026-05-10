@@ -4,6 +4,8 @@ import multer from "multer";
 import {
   handleCsvUpload,
   handleGetAttendees,
+  handleGetLogs,
+  handleManualOverride,
   handleUpdateInventory,
 } from "./admin.controller";
 import { requireAuth } from "../../middlewares/authMiddleware";
@@ -27,5 +29,9 @@ router.post(
 router.put("/inventory", requireAuth, requireAdmin, handleUpdateInventory);
 
 router.get("/attendees", requireAuth, requireAdmin, handleGetAttendees);
+
+router.post("/override", requireAuth, requireAdmin, handleManualOverride);
+
+router.get("/logs", requireAuth, requireAdmin, handleGetLogs);
 
 export const adminRoutes = router;

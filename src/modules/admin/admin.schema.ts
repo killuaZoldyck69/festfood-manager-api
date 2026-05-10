@@ -10,3 +10,28 @@ export const updateInventorySchema = z.object({
       .nonnegative("Total available cannot be negative"),
   }),
 });
+
+export const overrideSchema = z.object({
+  body: z.object({
+    attendeeId: z
+      .string({
+        message: "Attendee ID is required and must be a valid string",
+      })
+      .uuid("Invalid Attendee ID format"),
+  }),
+});
+
+export const getLogsQuerySchema = z.object({
+  query: z.object({
+    page: z
+      .string()
+      .optional()
+      .default("1")
+      .transform((val) => parseInt(val, 10)),
+    limit: z
+      .string()
+      .optional()
+      .default("50")
+      .transform((val) => parseInt(val, 10)),
+  }),
+});
