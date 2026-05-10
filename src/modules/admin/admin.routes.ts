@@ -1,7 +1,11 @@
 // src/modules/admin/admin.routes.ts
 import { Router } from "express";
 import multer from "multer";
-import { handleCsvUpload } from "./admin.controller";
+import {
+  handleCsvUpload,
+  handleGetAttendees,
+  handleUpdateInventory,
+} from "./admin.controller";
 import { requireAuth } from "../../middlewares/authMiddleware";
 import { requireAdmin } from "../../middlewares/adminMiddleware";
 
@@ -19,5 +23,9 @@ router.post(
   upload.single("file"),
   handleCsvUpload,
 );
+
+router.put("/inventory", requireAuth, requireAdmin, handleUpdateInventory);
+
+router.get("/attendees", requireAuth, requireAdmin, handleGetAttendees);
 
 export const adminRoutes = router;

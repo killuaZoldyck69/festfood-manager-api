@@ -15,7 +15,11 @@ const app = express();
 app.use(helmet());
 app.use(
   cors({
-    origin: ["http://192.168.0.102:8081", "http://localhost:8081"],
+    origin: [
+      "http://192.168.0.102:8081",
+      "http://localhost:8081",
+      "http://192.168.0.101:8081",
+    ],
     credentials: true,
   }),
 );

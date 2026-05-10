@@ -1,66 +1,92 @@
+// backend/admin.service.ts
 import { v4 as uuidv4 } from "uuid";
 import { parse } from "csv-parse/sync";
 import QRCode from "qrcode";
 import PDFDocument from "pdfkit";
-import { Response } from "express";
 import { prisma } from "../../lib/prisma";
 
 export const processUploadAndGeneratePDF = async (
   fileBuffer: Buffer,
-  res: Response,
-) => {
-  // 1. Parse the CSV file in memory
-  const records = parse(fileBuffer, {
-    columns: true,
-    skip_empty_lines: true,
-  });
+): Promise<string> => {
+  // 🔴 Now returns a string instead of taking the 'res' object
 
-  // 2. Prepare the data for the database
+  const records = parse(fileBuffer, { columns: true, skip_empty_lines: true });
+
   const attendeesData = records.map((record: any) => ({
     name: record.name,
     university: record.university,
     role: record.role,
     category: record.category,
-    qrToken: uuidv4(), // Generate a unique, unguessable string for the QR code
+    qrToken: uuidv4(),
   }));
 
-  // 3. Save to Database efficiently in one transaction
   await prisma.attendee.createMany({
     data: attendeesData,
     skipDuplicates: true,
   });
 
-  // 4. Generate the PDF and stream it directly to the HTTP response
-  const doc = new PDFDocument({ size: "A4" });
+  // 🔴 Wrap the PDF generation in a Promise to wait for it to finish and extract the Base64
+  return new Promise(async (resolve, reject) => {
+    try {
+      const doc = new PDFDocument({ size: "A4" });
+      const buffers: Buffer[] = [];
 
-  // Set headers so the browser/app knows it's receiving a PDF file
-  res.setHeader("Content-Type", "application/pdf");
-  res.setHeader("Content-Disposition", "attachment; filename=tickets.pdf");
-  doc.pipe(res);
+      doc.on("data", buffers.push.bind(buffers));
+      doc.on("end", () => {
+        const pdfData = Buffer.concat(buffers);
+        resolve(pdfData.toString("base64")); // Convert to safe Base64 string
+      });
+      doc.on("error", reject);
 
-  // 5. Draw the PDF Pages
-  for (let i = 0; i < attendeesData.length; i++) {
-    const attendee = attendeesData[i];
+      for (let i = 0; i < attendeesData.length; i++) {
+        const attendee = attendeesData[i];
+        const qrImage = await QRCode.toBuffer(attendee.qrToken);
 
-    // Convert the unique token into a QR code image buffer
-    const qrImage = await QRCode.toBuffer(attendee.qrToken);
+        doc.fontSize(24).text("FestFood Ticket", { align: "center" });
+        doc.moveDown();
+        doc.fontSize(16).text(`Name: ${attendee.name}`);
+        doc.text(`University: ${attendee.university}`);
+        doc.text(`Role: ${attendee.role}`);
+        doc.image(qrImage, doc.page.width / 2 - 75, doc.y + 20, { width: 150 });
 
-    // Draw the ticket
-    doc.fontSize(24).text("FestFood Ticket", { align: "center" });
-    doc.moveDown();
-    doc.fontSize(16).text(`Name: ${attendee.name}`);
-    doc.text(`University: ${attendee.university}`);
-    doc.text(`Role: ${attendee.role}`);
+        if (i < attendeesData.length - 1) doc.addPage();
+      }
 
-    // Draw the QR Code
-    doc.image(qrImage, doc.page.width / 2 - 75, doc.y + 20, { width: 150 });
-
-    // Add a new page for the next ticket (unless it's the last one)
-    if (i < attendeesData.length - 1) {
-      doc.addPage();
+      doc.end();
+    } catch (err) {
+      reject(err);
     }
-  }
+  });
+};
 
-  // Finalize the PDF (this closes the stream and completes the HTTP request)
-  doc.end();
+export const updateLogisticsInventory = async (totalAvailable: number) => {
+  const updatedLogistics = await prisma.eventLogistics.upsert({
+    where: { id: 1 },
+    update: { totalAvailable },
+    create: { id: 1, totalAvailable },
+  });
+
+  return updatedLogistics;
+};
+
+export const getAttendeesList = async (searchQuery?: string) => {
+  // If a search string exists, build a dynamic filter
+  const whereClause: any = searchQuery
+    ? {
+        OR: [
+          { name: { contains: searchQuery, mode: "insensitive" } },
+          { university: { contains: searchQuery, mode: "insensitive" } },
+          // We even let them search by the exact QR token string if needed
+          { qrToken: { contains: searchQuery, mode: "insensitive" } },
+        ],
+      }
+    : {};
+
+  const attendees = await prisma.attendee.findMany({
+    where: whereClause,
+    orderBy: { createdAt: "desc" }, // Newest uploads first
+    take: 500, // Safety limit to prevent crashing the mobile app with massive lists
+  });
+
+  return attendees;
 };
