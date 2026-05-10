@@ -8,48 +8,155 @@ import { prisma } from "../../lib/prisma";
 export const processUploadAndGeneratePDF = async (
   fileBuffer: Buffer,
 ): Promise<string> => {
-  // 🔴 Now returns a string instead of taking the 'res' object
-
   const records = parse(fileBuffer, { columns: true, skip_empty_lines: true });
 
-  const attendeesData = records.map((record: any) => ({
-    name: record.name,
-    university: record.university,
-    role: record.role,
-    category: record.category,
-    qrToken: uuidv4(),
-  }));
+  // 1. Extract all emails from the uploaded CSV
+  const csvEmails = records.map((r: any) => r.email).filter(Boolean);
 
-  await prisma.attendee.createMany({
-    data: attendeesData,
-    skipDuplicates: true,
+  // 2. Query the database to find which of these emails already exist
+  const existingAttendees = await prisma.attendee.findMany({
+    where: { email: { in: csvEmails } },
+    select: { email: true },
   });
 
-  // 🔴 Wrap the PDF generation in a Promise to wait for it to finish and extract the Base64
+  // Create a Set for ultra-fast lookup
+  const existingEmailSet = new Set(existingAttendees.map((a) => a.email));
+
+  // 3. Filter the CSV records to ONLY include brand new people
+  const newAttendeesData = records
+    .filter((record: any) => !existingEmailSet.has(record.email))
+    .map((record: any) => ({
+      name: record.name,
+      email: record.email, // Map the new email field
+      university: record.university,
+      role: record.role,
+      category: record.category,
+      qrToken: uuidv4(),
+    }));
+
+  // 4. Safety Check: If the CSV was entirely duplicates, stop the process
+  if (newAttendeesData.length === 0) {
+    throw new Error(
+      "No new attendees to add. All emails in this CSV already exist.",
+    );
+  }
+
+  // 5. Save ONLY the new attendees to the database
+  await prisma.attendee.createMany({
+    data: newAttendeesData,
+    skipDuplicates: true, // Extra safety net
+  });
+
+  // 6. Generate the Professional PDF ONLY for the newly added attendees
   return new Promise(async (resolve, reject) => {
     try {
-      const doc = new PDFDocument({ size: "A4" });
+      const doc = new PDFDocument({ size: "A4", margin: 50 });
       const buffers: Buffer[] = [];
 
       doc.on("data", buffers.push.bind(buffers));
       doc.on("end", () => {
         const pdfData = Buffer.concat(buffers);
-        resolve(pdfData.toString("base64")); // Convert to safe Base64 string
+        resolve(pdfData.toString("base64"));
       });
       doc.on("error", reject);
 
-      for (let i = 0; i < attendeesData.length; i++) {
-        const attendee = attendeesData[i];
-        const qrImage = await QRCode.toBuffer(attendee.qrToken);
+      const ticketWidth = 450;
+      const ticketHeight = 550;
+      const startX = (doc.page.width - ticketWidth) / 2;
+      const startY = 80;
 
-        doc.fontSize(24).text("FestFood Ticket", { align: "center" });
-        doc.moveDown();
-        doc.fontSize(16).text(`Name: ${attendee.name}`);
-        doc.text(`University: ${attendee.university}`);
-        doc.text(`Role: ${attendee.role}`);
-        doc.image(qrImage, doc.page.width / 2 - 75, doc.y + 20, { width: 150 });
+      for (let i = 0; i < newAttendeesData.length; i++) {
+        // NOTE: We are looping over newAttendeesData, NOT the raw records
+        const attendee = newAttendeesData[i];
 
-        if (i < attendeesData.length - 1) doc.addPage();
+        // --- 1. THE TICKET BORDER ---
+        doc
+          .rect(startX, startY, ticketWidth, ticketHeight)
+          .lineWidth(1.5)
+          .strokeColor("#1e293b")
+          .stroke();
+
+        // --- 2. THE BRANDED HEADER BLOCK ---
+        doc
+          .rect(startX, startY, ticketWidth, 90)
+          .fillAndStroke("#0f172a", "#0f172a");
+
+        doc
+          .fillColor("#ffffff")
+          .fontSize(24)
+          .font("Helvetica-Bold")
+          .text("SMUCT CSE FEST V3 2026", startX, startY + 25, {
+            width: ticketWidth,
+            align: "center",
+          });
+
+        doc
+          .fillColor("#94a3b8")
+          .fontSize(12)
+          .font("Helvetica-Oblique")
+          .text("OFFICIAL FOOD PASS", startX, startY + 55, {
+            width: ticketWidth,
+            align: "center",
+            characterSpacing: 2,
+          });
+
+        // --- 3. THE PARTICIPANT DETAILS ---
+        const detailsY = startY + 130;
+        const labelX = startX + 50;
+        const valueX = startX + 150;
+        const rowSpacing = 30;
+
+        const drawRow = (label: string, value: string, yOffset: number) => {
+          doc
+            .fontSize(12)
+            .fillColor("#64748b")
+            .font("Helvetica")
+            .text(label, labelX, detailsY + yOffset);
+          doc
+            .fontSize(12)
+            .fillColor("#0f172a")
+            .font("Helvetica-Bold")
+            .text(value, valueX, detailsY + yOffset);
+        };
+
+        drawRow("Name:", attendee.name, 0);
+        drawRow("Email:", attendee.email, rowSpacing); // Email now guaranteed to exist
+        drawRow("University:", attendee.university, rowSpacing * 2);
+        drawRow("Role:", attendee.role, rowSpacing * 3);
+        drawRow("Category:", attendee.category, rowSpacing * 4);
+
+        const dividerY = detailsY + rowSpacing * 4 + 40;
+        doc
+          .moveTo(startX + 50, dividerY)
+          .lineTo(startX + ticketWidth - 50, dividerY)
+          .lineWidth(1)
+          .strokeColor("#e2e8f0")
+          .stroke();
+
+        // --- 4. THE QR CODE ---
+        const qrImage = await QRCode.toBuffer(attendee.qrToken, {
+          errorCorrectionLevel: "H",
+          margin: 1,
+        });
+        const qrSize = 160;
+        const qrY = dividerY + 30;
+        doc.image(qrImage, startX + ticketWidth / 2 - qrSize / 2, qrY, {
+          width: qrSize,
+        });
+
+        // --- 5. THE FOOTER ---
+        doc
+          .fontSize(10)
+          .font("Helvetica")
+          .fillColor("#64748b")
+          .text(
+            "Please present this QR code to the volunteers at the food counter.",
+            startX + 30,
+            qrY + qrSize + 25,
+            { width: ticketWidth - 60, align: "center" },
+          );
+
+        if (i < newAttendeesData.length - 1) doc.addPage();
       }
 
       doc.end();

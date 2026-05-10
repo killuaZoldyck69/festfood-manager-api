@@ -21,12 +21,27 @@ export const handleCsvUpload = async (
       return res.status(400).json({ error: "No CSV file uploaded." });
     }
 
-    // 🔴 Await the Base64 string and send it as standard JSON!
     const base64Pdf = await processUploadAndGeneratePDF(req.file.buffer);
     return res.json({ pdfBase64: base64Pdf });
-  } catch (error) {
-    console.error("Upload Error:", error);
+  } catch (error: any) {
+    // 1. Keep the log clean so your terminal doesn't look like it crashed
+    console.warn("Upload Notice:", error.message);
+
     if (!res.headersSent) {
+      // 💥 2. GRACEFUL ERROR HANDLING
+      if (
+        error.message ===
+        "No new attendees to add. All emails in this CSV already exist."
+      ) {
+        // 409 Conflict is the perfect HTTP status for "Data already exists"
+        return res.status(409).json({
+          error: "Duplicate File",
+          message:
+            "All attendees in this CSV are already in the system. No duplicate tickets were created.",
+        });
+      }
+
+      // 3. Fallback for actual server crashes
       return res
         .status(500)
         .json({ error: "Failed to process CSV and generate PDF." });
