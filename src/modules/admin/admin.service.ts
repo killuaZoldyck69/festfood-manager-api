@@ -69,6 +69,8 @@ export const updateLogisticsInventory = async (totalAvailable: number) => {
   return updatedLogistics;
 };
 
+// src/modules/admin/admin.service.ts
+
 export const getAttendeesList = async (searchQuery?: string) => {
   // If a search string exists, build a dynamic filter
   const whereClause: any = searchQuery
@@ -76,7 +78,6 @@ export const getAttendeesList = async (searchQuery?: string) => {
         OR: [
           { name: { contains: searchQuery, mode: "insensitive" } },
           { university: { contains: searchQuery, mode: "insensitive" } },
-          // We even let them search by the exact QR token string if needed
           { qrToken: { contains: searchQuery, mode: "insensitive" } },
         ],
       }
@@ -84,9 +85,36 @@ export const getAttendeesList = async (searchQuery?: string) => {
 
   const attendees = await prisma.attendee.findMany({
     where: whereClause,
-    orderBy: { createdAt: "desc" }, // Newest uploads first
-    take: 500, // Safety limit to prevent crashing the mobile app with massive lists
+    orderBy: { createdAt: "desc" },
+    take: 500,
+    // 💥 NEW: Fetch the related scan log and the user who performed it
+    include: {
+      scanLogs: {
+        where: { status: "SUCCESS" }, // We only care about the successful scan
+        include: {
+          volunteer: {
+            select: {
+              name: true,
+              role: true,
+            },
+          },
+        },
+      },
+    },
   });
 
-  return attendees;
+  // Flatten the response so the frontend doesn't have to deal with nested arrays
+  return attendees.map((attendee) => {
+    // Extract the successful scan log (if it exists)
+    const successLog = attendee.scanLogs[0];
+
+    // Remove the raw 'scanLogs' array from the final output
+    const { scanLogs, ...attendeeData } = attendee;
+
+    return {
+      ...attendeeData,
+      scannerName: successLog?.volunteer?.name || null,
+      scannerRole: successLog?.volunteer?.role || null,
+    };
+  });
 };
