@@ -7,6 +7,7 @@ import { auth } from "./lib/auth";
 import { scanRoutes } from "./modules/scan/scan.routes";
 import { inventoryRoutes } from "./modules/inventory/inventory.routes";
 import { adminRoutes } from "./modules/admin/admin.routes";
+import { volunteerRoutes } from "./modules/volunteer/volunteer.routes";
 
 // Initialize instances
 const app = express();
@@ -50,5 +51,6 @@ app.get("/api/health", async (req: Request, res: Response) => {
 app.use("/api/scan", scanRoutes);
 app.use("/api/inventory", inventoryRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/volunteer", volunteerRoutes);
 
 export default app;
