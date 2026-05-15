@@ -8,6 +8,8 @@ import { scanRoutes } from "./modules/scan/scan.routes";
 import { inventoryRoutes } from "./modules/inventory/inventory.routes";
 import { adminRoutes } from "./modules/admin/admin.routes";
 import { volunteerRoutes } from "./modules/volunteer/volunteer.routes";
+import { notFoundHandler } from "./middlewares/notFoundHandler";
+import { globalErrorHandler } from "./middlewares/globalErrorHandler";
 
 // Initialize instances
 const app = express();
@@ -52,5 +54,8 @@ app.use("/api/scan", scanRoutes);
 app.use("/api/inventory", inventoryRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/volunteer", volunteerRoutes);
+
+app.use(notFoundHandler);
+app.use(globalErrorHandler);
 
 export default app;
