@@ -176,10 +176,15 @@ export const updateLogisticsInventory = async (totalAvailable: number) => {
   return updatedLogistics;
 };
 
-// src/modules/admin/admin.service.ts
+export const getAttendeesList = async (
+  searchQuery?: string,
+  page: number = 1,
+  limit: number = 50,
+  status: "ALL" | "CLAIMED" | "PENDING" = "ALL", // Add the new parameter
+) => {
+  const skip = (page - 1) * limit;
 
-export const getAttendeesList = async (searchQuery?: string) => {
-  // If a search string exists, build a dynamic filter
+  // 1. Build the base search filter
   const whereClause: any = searchQuery
     ? {
         OR: [
@@ -190,32 +195,37 @@ export const getAttendeesList = async (searchQuery?: string) => {
       }
     : {};
 
-  const attendees = await prisma.attendee.findMany({
-    where: whereClause,
-    orderBy: { createdAt: "desc" },
-    take: 500,
-    // 💥 NEW: Fetch the related scan log and the user who performed it
-    include: {
-      scanLogs: {
-        where: { status: "SUCCESS" }, // We only care about the successful scan
-        include: {
-          volunteer: {
-            select: {
-              name: true,
-              role: true,
+  // 2. Inject the status filter
+  if (status === "CLAIMED") {
+    whereClause.foodClaimed = true;
+  } else if (status === "PENDING") {
+    whereClause.foodClaimed = false;
+  }
+
+  // 3. Run the count and fetch simultaneously
+  const [totalCount, attendees] = await Promise.all([
+    prisma.attendee.count({ where: whereClause }),
+    prisma.attendee.findMany({
+      where: whereClause,
+      orderBy: { createdAt: "desc" },
+      skip: skip,
+      take: limit,
+      include: {
+        scanLogs: {
+          where: { status: "SUCCESS" },
+          include: {
+            volunteer: {
+              select: { name: true, role: true },
             },
           },
         },
       },
-    },
-  });
+    }),
+  ]);
 
-  // Flatten the response so the frontend doesn't have to deal with nested arrays
-  return attendees.map((attendee) => {
-    // Extract the successful scan log (if it exists)
+  // 4. Flatten the response
+  const formattedAttendees = attendees.map((attendee) => {
     const successLog = attendee.scanLogs[0];
-
-    // Remove the raw 'scanLogs' array from the final output
     const { scanLogs, ...attendeeData } = attendee;
 
     return {
@@ -224,6 +234,17 @@ export const getAttendeesList = async (searchQuery?: string) => {
       scannerRole: successLog?.volunteer?.role || null,
     };
   });
+
+  return {
+    meta: {
+      totalAttendees: totalCount,
+      currentPage: page,
+      totalPages: Math.ceil(totalCount / limit),
+      hasMore: page * limit < totalCount,
+      currentFilter: status, // Let the frontend know which filter was applied
+    },
+    attendees: formattedAttendees,
+  };
 };
 
 export const processManualOverride = async (

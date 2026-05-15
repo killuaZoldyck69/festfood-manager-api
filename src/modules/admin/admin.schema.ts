@@ -35,3 +35,20 @@ export const getLogsQuerySchema = z.object({
       .transform((val) => parseInt(val, 10)),
   }),
 });
+
+export const getAttendeesQuerySchema = z.object({
+  query: z.object({
+    search: z.string().optional(),
+    status: z.enum(["ALL", "CLAIMED", "PENDING"]).optional().default("ALL"),
+    page: z
+      .string()
+      .optional()
+      .default("1")
+      .transform((val) => parseInt(val, 10)),
+    limit: z
+      .string()
+      .optional()
+      .default("50")
+      .transform((val) => parseInt(val, 10)),
+  }),
+});

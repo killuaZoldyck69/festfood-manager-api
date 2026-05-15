@@ -7,6 +7,7 @@ import {
   updateLogisticsInventory,
 } from "./admin.service";
 import {
+  getAttendeesQuerySchema,
   getLogsQuerySchema,
   overrideSchema,
   updateInventorySchema,
@@ -80,23 +81,25 @@ export const handleGetAttendees = async (
   res: Response,
 ): Promise<any> => {
   try {
-    // Extract the query parameter (e.g., /api/admin/attendees?search=John)
-    const search = req.query.search as string | undefined;
+    // 1. Validate and extract query parameters
+    const validatedData = getAttendeesQuerySchema.parse({ query: req.query });
 
-    // Pass it to the service
-    const attendees = await getAttendeesList(search);
+    // 💥 NEW: Extract the status
+    const { search, page, limit, status } = validatedData.query;
 
-    // Return the array of students
-    return res.status(200).json({
-      count: attendees.length,
-      attendees: attendees,
-    });
-  } catch (error) {
+    // 2. Pass parameters to the service (including status)
+    const result = await getAttendeesList(search, page, limit, status);
+
+    // 3. Return the paginated response
+    return res.status(200).json(result);
+  } catch (error: any) {
+    if (error.name === "ZodError") {
+      return res.status(400).json({ error: error.errors });
+    }
     console.error("Fetch Attendees Error:", error);
     return res.status(500).json({ error: "Failed to fetch attendees list." });
   }
 };
-
 export const handleManualOverride = async (
   req: Request,
   res: Response,
