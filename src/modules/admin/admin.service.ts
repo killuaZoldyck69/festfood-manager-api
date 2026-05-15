@@ -1,169 +1,244 @@
-// backend/admin.service.ts
 import { v4 as uuidv4 } from "uuid";
 import { parse } from "csv-parse/sync";
 import QRCode from "qrcode";
 import PDFDocument from "pdfkit";
 import { prisma } from "../../lib/prisma";
+import fs from "fs";
+import path from "path";
+
+interface AttendeeData {
+  name: string;
+  email: string;
+  university: string;
+  role: string;
+  category: string;
+  qrToken: string;
+}
 
 export const processUploadAndGeneratePDF = async (
   fileBuffer: Buffer,
 ): Promise<string> => {
+  // 1. CSV Parsing and De-duplication
   const records = parse(fileBuffer, { columns: true, skip_empty_lines: true });
-
-  // 1. Extract all emails from the uploaded CSV
   const csvEmails = records.map((r: any) => r.email).filter(Boolean);
-
-  // 2. Query the database to find which of these emails already exist
   const existingAttendees = await prisma.attendee.findMany({
     where: { email: { in: csvEmails } },
     select: { email: true },
   });
-
-  // Create a Set for ultra-fast lookup
   const existingEmailSet = new Set(existingAttendees.map((a) => a.email));
 
-  // 3. Filter the CSV records to ONLY include brand new people
   const newAttendeesData = records
     .filter((record: any) => !existingEmailSet.has(record.email))
     .map((record: any) => ({
       name: record.name,
-      email: record.email, // Map the new email field
+      email: record.email,
       university: record.university,
       role: record.role,
       category: record.category,
       qrToken: uuidv4(),
     }));
 
-  // 4. Safety Check: If the CSV was entirely duplicates, stop the process
   if (newAttendeesData.length === 0) {
     throw new Error(
       "No new attendees to add. All emails in this CSV already exist.",
     );
   }
 
-  // 5. Save ONLY the new attendees to the database
+  // 2. Atomic Database Insert
   await prisma.attendee.createMany({
     data: newAttendeesData,
-    skipDuplicates: true, // Extra safety net
+    skipDuplicates: true,
   });
 
-  // 6. Generate the Professional PDF ONLY for the newly added attendees
-  return new Promise(async (resolve, reject) => {
-    try {
-      const doc = new PDFDocument({ size: "A4", margin: 50 });
-      const buffers: Buffer[] = [];
+  // 3. ASSET LOADING (QR Logo, Dept Logo, Banner)
+  const qrLogoPath = path.resolve(process.cwd(), "src/assets/logo.jpg");
+  const deptLogoPath = path.resolve(process.cwd(), "src/assets/dept-logo.jpg");
+  const bannerPath = path.resolve(process.cwd(), "src/assets/banner.jpg");
 
-      doc.on("data", buffers.push.bind(buffers));
-      doc.on("end", () => {
-        const pdfData = Buffer.concat(buffers);
-        resolve(pdfData.toString("base64"));
+  // Helper to safely load buffers
+  const loadAsset = (filePath: string) =>
+    fs.existsSync(filePath) ? fs.readFileSync(filePath) : null;
+
+  const qrLogoBuffer = loadAsset(qrLogoPath);
+  const deptLogoBuffer = loadAsset(deptLogoPath);
+  const bannerBuffer = loadAsset(bannerPath);
+
+  // 4. Generate the 4-per-page Portrait PDF
+  const doc = new PDFDocument({ size: "A4", margin: 40 });
+  const buffers: Buffer[] = [];
+
+  doc.on("data", buffers.push.bind(buffers));
+  const pdfStringPromise = new Promise<string>((resolve, reject) => {
+    doc.on("end", () => {
+      const pdfData = Buffer.concat(buffers);
+      resolve(pdfData.toString("base64"));
+    });
+    doc.on("error", reject);
+  });
+
+  const ticketWidth = 515;
+  const ticketHeight = 175;
+  const startX = 40;
+  const startYBase = 40;
+  const spacing = 15;
+
+  const infoWidth = ticketWidth * 0.7;
+  const qrWidth = ticketWidth * 0.3;
+
+  for (let i = 0; i < newAttendeesData.length; i++) {
+    const attendee = newAttendeesData[i];
+
+    if (i > 0 && i % 4 === 0) doc.addPage();
+
+    const slotIndex = i % 4;
+    const currentY = startYBase + slotIndex * (ticketHeight + spacing);
+
+    // --- A. LEFT COLUMN: Fest & User Info (With Banner Background) ---
+
+    // 1. Draw the Background Banner Image
+    if (bannerBuffer) {
+      doc.image(bannerBuffer, startX, currentY, {
+        width: infoWidth,
+        height: ticketHeight,
       });
-      doc.on("error", reject);
-
-      const ticketWidth = 450;
-      const ticketHeight = 550;
-      const startX = (doc.page.width - ticketWidth) / 2;
-      const startY = 80;
-
-      for (let i = 0; i < newAttendeesData.length; i++) {
-        // NOTE: We are looping over newAttendeesData, NOT the raw records
-        const attendee = newAttendeesData[i];
-
-        // --- 1. THE TICKET BORDER ---
-        doc
-          .rect(startX, startY, ticketWidth, ticketHeight)
-          .lineWidth(1.5)
-          .strokeColor("#1e293b")
-          .stroke();
-
-        // --- 2. THE BRANDED HEADER BLOCK ---
-        doc
-          .rect(startX, startY, ticketWidth, 90)
-          .fillAndStroke("#0f172a", "#0f172a");
-
-        doc
-          .fillColor("#ffffff")
-          .fontSize(24)
-          .font("Helvetica-Bold")
-          .text("SMUCT CSE FEST V3 2026", startX, startY + 25, {
-            width: ticketWidth,
-            align: "center",
-          });
-
-        doc
-          .fillColor("#94a3b8")
-          .fontSize(12)
-          .font("Helvetica-Oblique")
-          .text("OFFICIAL FOOD PASS", startX, startY + 55, {
-            width: ticketWidth,
-            align: "center",
-            characterSpacing: 2,
-          });
-
-        // --- 3. THE PARTICIPANT DETAILS ---
-        const detailsY = startY + 130;
-        const labelX = startX + 50;
-        const valueX = startX + 150;
-        const rowSpacing = 30;
-
-        const drawRow = (label: string, value: string, yOffset: number) => {
-          doc
-            .fontSize(12)
-            .fillColor("#64748b")
-            .font("Helvetica")
-            .text(label, labelX, detailsY + yOffset);
-          doc
-            .fontSize(12)
-            .fillColor("#0f172a")
-            .font("Helvetica-Bold")
-            .text(value, valueX, detailsY + yOffset);
-        };
-
-        drawRow("Name:", attendee.name, 0);
-        drawRow("Email:", attendee.email, rowSpacing); // Email now guaranteed to exist
-        drawRow("University:", attendee.university, rowSpacing * 2);
-        drawRow("Role:", attendee.role, rowSpacing * 3);
-        drawRow("Category:", attendee.category, rowSpacing * 4);
-
-        const dividerY = detailsY + rowSpacing * 4 + 40;
-        doc
-          .moveTo(startX + 50, dividerY)
-          .lineTo(startX + ticketWidth - 50, dividerY)
-          .lineWidth(1)
-          .strokeColor("#e2e8f0")
-          .stroke();
-
-        // --- 4. THE QR CODE ---
-        const qrImage = await QRCode.toBuffer(attendee.qrToken, {
-          errorCorrectionLevel: "H",
-          margin: 1,
-        });
-        const qrSize = 160;
-        const qrY = dividerY + 30;
-        doc.image(qrImage, startX + ticketWidth / 2 - qrSize / 2, qrY, {
-          width: qrSize,
-        });
-
-        // --- 5. THE FOOTER ---
-        doc
-          .fontSize(10)
-          .font("Helvetica")
-          .fillColor("#64748b")
-          .text(
-            "Please present this QR code to the volunteers at the food counter.",
-            startX + 30,
-            qrY + qrSize + 25,
-            { width: ticketWidth - 60, align: "center" },
-          );
-
-        if (i < newAttendeesData.length - 1) doc.addPage();
-      }
-
-      doc.end();
-    } catch (err) {
-      reject(err);
+      // Draw a dark semi-transparent overlay so the white text is readable
+      doc
+        .rect(startX, currentY, infoWidth, ticketHeight)
+        .fillOpacity(0.85)
+        .fill("#0f172a");
+      doc.fillOpacity(1); // CRITICAL: Reset opacity back to 100% for the text!
+    } else {
+      // Fallback if banner image is missing
+      doc.rect(startX, currentY, infoWidth, ticketHeight).fill("#0f172a");
     }
-  });
+
+    // 2. Draw Department Logo
+    let headerTextX = startX + 20; // Default X if no logo
+    if (deptLogoBuffer) {
+      // Draw the circular logo 40x40px
+      doc.image(deptLogoBuffer, startX + 15, currentY + 15, { width: 40 });
+      headerTextX = startX + 65; // Push the text to the right of the logo
+    }
+
+    // 3. Header Text
+    doc
+      .fillColor("#ffffff")
+      .font("Helvetica-Bold")
+      .fontSize(18)
+      .text("SMUCT CSE FEST V3", headerTextX, currentY + 15, {
+        width: infoWidth - headerTextX + startX,
+      });
+    doc
+      .fontSize(9)
+      .font("Helvetica")
+      .fillColor("#cbd5e1")
+      .text(
+        "Shanto-Mariam University of Creative Technology",
+        headerTextX,
+        currentY + 35,
+      );
+
+    // 4. Status Block (Using bright orange to match your banner!)
+    doc.rect(startX + 15, currentY + 65, 90, 20).fill("#ea580c");
+    doc
+      .fillColor("#ffffff")
+      .fontSize(9)
+      .font("Helvetica-Bold")
+      .text("FOOD PASS", startX + 15, currentY + 71, {
+        width: 90,
+        align: "center",
+        characterSpacing: 1,
+      });
+
+    // 5. User Details
+    const detailsY = currentY + 95;
+    const labelX = startX + 15;
+    const valueX = startX + 85;
+    const rowSpacing = 16;
+
+    const drawRow = (label: string, value: string, yOffset: number) => {
+      doc
+        .fontSize(9)
+        .fillColor("#94a3b8")
+        .font("Helvetica")
+        .text(label, labelX, detailsY + yOffset);
+      doc
+        .fontSize(9)
+        .fillColor("#ffffff")
+        .font("Helvetica-Bold")
+        .text(value, valueX, detailsY + yOffset);
+    };
+
+    drawRow("Name:", attendee.name, 0);
+    drawRow("Email:", attendee.email, rowSpacing);
+    drawRow("Category:", attendee.category, rowSpacing * 2);
+    drawRow("Role:", attendee.role, rowSpacing * 3);
+
+    // --- B. RIGHT COLUMN: QR Code (White Background) ---
+
+    // Fill the right side with solid white so the QR scans easily
+    doc
+      .rect(startX + infoWidth, currentY, qrWidth, ticketHeight)
+      .fillAndStroke("#ffffff", "#1e293b");
+
+    // Label
+    doc
+      .fillColor("#1e293b")
+      .fontSize(10)
+      .font("Helvetica-Bold")
+      .text("SCAN FOR FOOD", startX + infoWidth, currentY + 15, {
+        width: qrWidth,
+        align: "center",
+      });
+
+    // Generate Base QR Code
+    const qrImage = await QRCode.toBuffer(attendee.qrToken, {
+      errorCorrectionLevel: "H",
+      margin: 1,
+    });
+
+    const qrSize = 100;
+    const qrX = startX + infoWidth + qrWidth / 2 - qrSize / 2;
+    const qrY = currentY + 35;
+
+    // Draw the QR Code
+    doc.image(qrImage, qrX, qrY, { width: qrSize });
+
+    // Overlay the custom logo in the QR code
+    if (qrLogoBuffer) {
+      const logoSize = 24;
+      const logoX = qrX + qrSize / 2 - logoSize / 2;
+      const logoY = qrY + qrSize / 2 - logoSize / 2;
+
+      doc
+        .rect(logoX - 2, logoY - 2, logoSize + 4, logoSize + 4)
+        .fill("#ffffff");
+      doc.image(qrLogoBuffer, logoX, logoY, { width: logoSize });
+    }
+
+    // Developer Signature
+    doc
+      .fontSize(7)
+      .font("Helvetica-Oblique")
+      .fillColor("#94a3b8")
+      .text(
+        "Developed by Shishimaru",
+        startX + infoWidth,
+        currentY + ticketHeight - 15,
+        { width: qrWidth, align: "center" },
+      );
+
+    // --- C. DRAW THE TICKET BORDER LAST ---
+    // Drawing it last ensures it frames the banner image perfectly
+    doc
+      .rect(startX, currentY, ticketWidth, ticketHeight)
+      .lineWidth(1.5)
+      .strokeColor("#1e293b")
+      .stroke();
+  }
+
+  doc.end();
+  return pdfStringPromise;
 };
 
 export const updateLogisticsInventory = async (totalAvailable: number) => {
