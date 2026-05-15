@@ -1,9 +1,9 @@
 import express, { Request, Response } from "express";
 import cors from "cors";
 import helmet from "helmet";
-import { prisma } from "./lib/prisma";
 import { toNodeHandler } from "better-auth/node";
 import { auth } from "./lib/auth";
+import { prisma } from "./lib/prisma";
 import { scanRoutes } from "./modules/scan/scan.routes";
 import { inventoryRoutes } from "./modules/inventory/inventory.routes";
 import { adminRoutes } from "./modules/admin/admin.routes";
@@ -11,10 +11,8 @@ import { volunteerRoutes } from "./modules/volunteer/volunteer.routes";
 import { notFoundHandler } from "./middlewares/notFoundHandler";
 import { globalErrorHandler } from "./middlewares/globalErrorHandler";
 
-// Initialize instances
 const app = express();
 
-// Global Middleware
 app.use(helmet());
 app.use(
   cors({
@@ -28,23 +26,18 @@ app.use(
 );
 app.use(express.json());
 
-app.all("/api/auth/{*any}", toNodeHandler(auth));
+app.all("/api/auth/*", toNodeHandler(auth));
 
-// ------------------------------------------------------
-// ROUTES
-// ------------------------------------------------------
-
-// Health Check Route (Strategy A)
-app.get("/api/health", async (req: Request, res: Response) => {
+app.get("/api/health", async (_req: Request, res: Response) => {
   try {
-    // Ping the database to ensure it's alive
     await prisma.$queryRaw`SELECT 1`;
-
-    res.status(200).json({
-      status: "Healthy",
-      uptime: process.uptime(),
-      database: "Connected",
-    });
+    res
+      .status(200)
+      .json({
+        status: "Healthy",
+        uptime: process.uptime(),
+        database: "Connected",
+      });
   } catch (error) {
     res.status(500).json({ status: "Offline", database: "Disconnected" });
   }
