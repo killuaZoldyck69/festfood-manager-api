@@ -34,15 +34,23 @@ export const processScan = async (qrToken: string, volunteerId: string) => {
     };
   }
 
-  // 💥 THE FIX IS HERE 💥
-  // We add the EventLogistics update to the transaction array
+  // 💥 NEW: Strict Inventory Validation 💥
+  const logistics = await prisma.eventLogistics.findUnique({
+    where: { id: 1 },
+  });
+  if (!logistics || logistics.totalAvailable <= 0) {
+    return {
+      status: "DEPLETED",
+      message: "Scan failed: No food available in inventory.",
+      code: 400, // Bad Request
+    };
+  }
+
   const [updatedAttendee, log, logisticsUpdate] = await prisma.$transaction([
-    // 1. Mark the food as claimed
     prisma.attendee.update({
       where: { id: attendee.id },
       data: { foodClaimed: true, claimedAt: new Date() },
     }),
-    // 2. Create the success audit log
     prisma.scanLog.create({
       data: {
         status: "SUCCESS",
@@ -51,15 +59,9 @@ export const processScan = async (qrToken: string, volunteerId: string) => {
         scannedToken: qrToken,
       },
     }),
-    // 3. Decrease the Total Available inventory by 1
-    // We use updateMany so it doesn't crash if the Admin hasn't set the inventory yet
     prisma.eventLogistics.updateMany({
-      where: { id: 1, totalAvailable: { gt: 0 } }, // Only decrement if greater than 0
-      data: {
-        totalAvailable: {
-          decrement: 1,
-        },
-      },
+      where: { id: 1, totalAvailable: { gt: 0 } },
+      data: { totalAvailable: { decrement: 1 } },
     }),
   ]);
 

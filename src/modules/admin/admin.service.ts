@@ -280,8 +280,17 @@ export const processManualOverride = async (
   });
 
   if (!attendee) throw new AppError(404, "Attendee not found.");
-  if (attendee.foodClaimed)
+  if (attendee.foodClaimed) {
     throw new AppError(409, "Attendee has already claimed their food.");
+  }
+
+  // 💥 NEW: Strict Inventory Validation 💥
+  const logistics = await prisma.eventLogistics.findUnique({
+    where: { id: 1 },
+  });
+  if (!logistics || logistics.totalAvailable <= 0) {
+    throw new AppError(400, "Override failed: No food available in inventory.");
+  }
 
   const [updatedAttendee] = await prisma.$transaction([
     prisma.attendee.update({
