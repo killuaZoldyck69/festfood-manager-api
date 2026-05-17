@@ -9,12 +9,15 @@ export const auth = betterAuth({
     provider: "postgresql",
   }),
   baseURL: envConfig.betterAuthUrl,
+
   trustedOrigins:
-    envConfig.nodeEnv === "development" ? ["*"] : [envConfig.appUrl as string],
+    envConfig.nodeEnv === "development"
+      ? ["*", "festfoodmanagermobile://", "exp://"]
+      : [envConfig.appUrl as string, "festfoodmanagermobile://"],
+
   emailAndPassword: {
     enabled: true,
   },
-
   plugins: [bearer()],
   user: {
     additionalFields: {
