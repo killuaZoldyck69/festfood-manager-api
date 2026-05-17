@@ -26,18 +26,16 @@ app.use(
 );
 app.use(express.json());
 
-app.all("/api/auth/*", toNodeHandler(auth));
+app.all("/api/auth/{*any}", toNodeHandler(auth));
 
 app.get("/api/health", async (_req: Request, res: Response) => {
   try {
     await prisma.$queryRaw`SELECT 1`;
-    res
-      .status(200)
-      .json({
-        status: "Healthy",
-        uptime: process.uptime(),
-        database: "Connected",
-      });
+    res.status(200).json({
+      status: "Healthy",
+      uptime: process.uptime(),
+      database: "Connected",
+    });
   } catch (error) {
     res.status(500).json({ status: "Offline", database: "Disconnected" });
   }

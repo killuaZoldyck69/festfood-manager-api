@@ -1,31 +1,27 @@
-import { ScanStatus } from "../../generated/prisma/enums";
+import { Prisma, ScanStatus } from "../../generated/prisma/client";
 import { prisma } from "../../lib/prisma";
 
 export const getVolunteerLogs = async (
   volunteerId: string,
   page: number,
   limit: number,
-  status?: ScanStatus, // We type this to match Prisma's exact enum
+  status?: ScanStatus,
 ) => {
   const skip = (page - 1) * limit;
 
-  // Build the dynamic where clause
-  // We strictly lock this to the logged-in volunteer's ID
-  const whereClause: any = { volunteerId };
+  const whereClause: Prisma.ScanLogWhereInput = { volunteerId };
 
-  // If the mobile app sent a specific status filter, add it to the query
   if (status) {
     whereClause.status = status;
   }
 
-  // Run the count and fetch simultaneously
   const [totalLogs, rawLogs] = await Promise.all([
     prisma.scanLog.count({ where: whereClause }),
     prisma.scanLog.findMany({
       where: whereClause,
-      skip: skip,
+      skip,
       take: limit,
-      orderBy: { scannedAt: "desc" }, // Newest scans at the top
+      orderBy: { scannedAt: "desc" },
       include: {
         attendee: {
           select: { name: true, university: true, category: true },
@@ -34,15 +30,14 @@ export const getVolunteerLogs = async (
     }),
   ]);
 
-  // Flatten the response for the frontend
   const formattedLogs = rawLogs.map((log) => ({
     id: log.id,
     status: log.status,
     scannedToken: log.scannedToken,
     scannedAt: log.scannedAt,
-    // Include attendee info if it was a valid scan, otherwise return null
     attendeeName: log.attendee?.name || null,
     attendeeUniversity: log.attendee?.university || null,
+    attendeeCategory: log.attendee?.category || null,
   }));
 
   return {
