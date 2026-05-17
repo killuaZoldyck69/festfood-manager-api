@@ -25,7 +25,12 @@ export const overrideSchema = z.object({
 });
 
 export const getLogsQuerySchema = z.object({
-  query: paginationSchema,
+  query: paginationSchema.extend({
+    status: z
+      .enum(["ALL", "SUCCESS", "DUPLICATE", "INVALID", "MANUAL_OVERRIDE"])
+      .optional()
+      .default("ALL"),
+  }),
 });
 
 export const getAttendeesQuerySchema = z.object({

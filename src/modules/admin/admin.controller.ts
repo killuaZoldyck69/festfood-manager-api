@@ -65,8 +65,10 @@ export const handleManualOverride = catchAsync(
 );
 
 export const handleGetLogs = catchAsync(async (req: Request, res: Response) => {
-  const { page, limit } = getLogsQuerySchema.parse({ query: req.query }).query;
-  const logsData = await getSystemLogs(page, limit);
+  const { page, limit, status } = getLogsQuerySchema.parse({
+    query: req.query,
+  }).query;
+  const logsData = await getSystemLogs(page, limit, status);
 
   res.status(200).json(logsData);
 });

@@ -6,6 +6,7 @@ import { prisma } from "../../lib/prisma";
 import fs from "fs";
 import path from "path";
 import { AppError } from "../../errors/AppError";
+import { Prisma, ScanStatus } from "../../generated/prisma/client";
 
 export const processUploadAndGeneratePDF = async (
   fileBuffer: Buffer,
@@ -304,18 +305,28 @@ export const processManualOverride = async (
   return updatedAttendee;
 };
 
-export const getSystemLogs = async (page: number, limit: number) => {
+export const getSystemLogs = async (
+  page: number,
+  limit: number,
+  status: "ALL" | ScanStatus | "MANUAL_OVERRIDE" = "ALL",
+) => {
   const skip = (page - 1) * limit;
+  const whereClause: Prisma.ScanLogWhereInput = {};
+
+  if (status !== "ALL") {
+    whereClause.status = status as ScanStatus;
+  }
 
   const [totalLogs, rawLogs] = await Promise.all([
-    prisma.scanLog.count(),
+    prisma.scanLog.count({ where: whereClause }),
     prisma.scanLog.findMany({
+      where: whereClause,
       skip: skip,
       take: limit,
       orderBy: { scannedAt: "desc" },
       include: {
         volunteer: { select: { name: true, role: true } },
-        attendee: { select: { name: true, university: true } },
+        attendee: { select: { name: true, university: true, category: true } },
       },
     }),
   ]);
@@ -326,7 +337,10 @@ export const getSystemLogs = async (page: number, limit: number) => {
     scannedToken: log.scannedToken,
     scannedAt: log.scannedAt,
     volunteerName: log.volunteer?.name || "Unknown",
+    volunteerRole: log.volunteer?.role || "Unknown",
     attendeeName: log.attendee?.name || null,
+    attendeeUniversity: log.attendee?.university || null,
+    attendeeCategory: log.attendee?.category || null,
   }));
 
   return {
@@ -335,6 +349,7 @@ export const getSystemLogs = async (page: number, limit: number) => {
       currentPage: page,
       totalPages: Math.ceil(totalLogs / limit),
       hasMore: page * limit < totalLogs,
+      currentFilter: status,
     },
     logs: formattedLogs,
   };
