@@ -10,5 +10,7 @@
     "skipLibCheck": true,
     "ignoreDeprecations": "6.0",
     "moduleResolution": "bundler"
-  }
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "**/*.config.ts"]
 }
