@@ -13,7 +13,14 @@ export const auth = betterAuth({
   trustedOrigins:
     envConfig.nodeEnv === "development"
       ? ["*", "festfoodmanagermobile://", "exp://"]
-      : [envConfig.appUrl as string, "festfoodmanagermobile://"],
+      : [
+          envConfig.appUrl as string,
+          "festfoodmanagermobile://",
+          "exp://",
+          "http://192.168.0.101:8081",
+          "http://localhost:8081",
+          "http://192.168.0.102:8081",
+        ],
 
   emailAndPassword: {
     enabled: true,
