@@ -3,6 +3,7 @@ import multer from "multer";
 import { requireAuth } from "../../middlewares/authMiddleware";
 import { requireAdmin } from "../../middlewares/adminMiddleware";
 import {
+  downloadAllTickets,
   handleCsvUpload,
   handleGetAttendees,
   handleGetLogs,
@@ -20,5 +21,6 @@ router.put("/inventory", handleUpdateInventory);
 router.get("/attendees", handleGetAttendees);
 router.post("/override", handleManualOverride);
 router.get("/logs", handleGetLogs);
+router.get("/tickets/download-all", downloadAllTickets);
 
 export { router as adminRoutes };

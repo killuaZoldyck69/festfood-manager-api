@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { catchAsync } from "../../shared/catchAsync";
 import { AppError } from "../../errors/AppError";
 import {
+  generateAllTicketsPdfStream,
   getAttendeesList,
   getSystemLogs,
   processManualOverride,
@@ -72,3 +73,21 @@ export const handleGetLogs = catchAsync(async (req: Request, res: Response) => {
 
   res.status(200).json(logsData);
 });
+
+export const downloadAllTickets = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  try {
+    await generateAllTicketsPdfStream(res);
+  } catch (error: any) {
+    console.error("Error generating backup tickets:", error);
+
+    if (!res.headersSent) {
+      res.status(500).json({
+        success: false,
+        message: error.message || "Failed to generate tickets backup.",
+      });
+    }
+  }
+};
