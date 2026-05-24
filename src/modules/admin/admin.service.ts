@@ -8,201 +8,117 @@ import path from "path";
 import { AppError } from "../../errors/AppError";
 import { Prisma, ScanStatus } from "../../generated/prisma/client";
 import { Response } from "express";
+import { buildPdfTicketsToDisk } from "../../shared/utils/pdfGenerator.util";
+
+interface CsvRow {
+  name?: string;
+  email?: string;
+  studentId?: string;
+  university?: string;
+  role?: string;
+  category?: string;
+  [key: string]: any;
+}
 
 export const processUploadAndGeneratePDF = async (
   fileBuffer: Buffer,
-): Promise<string> => {
-  const records = parse(fileBuffer, { columns: true, skip_empty_lines: true });
-  const csvEmails = records.map((r: any) => r.email).filter(Boolean);
+): Promise<{ insertedCount: number; fileName: string }> => {
+  const records = parse(fileBuffer, {
+    columns: true,
+    skip_empty_lines: true,
+  }) as CsvRow[];
 
+  const requiredFields = [
+    "name",
+    "email",
+    "studentId",
+    "university",
+    "role",
+    "category",
+  ];
+
+  const cleanedRecords: any[] = [];
+  const csvEmailsSet = new Set<string>();
+
+  for (let i = 0; i < records.length; i++) {
+    const row = records[i];
+
+    const cleanedRow: CsvRow = {
+      name: String(row.name || "").trim(),
+      email: String(row.email || "")
+        .trim()
+        .toLowerCase(),
+      studentId: String(row.studentId || "").trim(),
+      university: String(row.university || "").trim(),
+      role: String(row.role || "").trim(),
+      category: String(row.category || "").trim(),
+    };
+
+    for (const field of requiredFields) {
+      if (!cleanedRow[field]) {
+        throw new AppError(
+          400,
+          `Row ${i + 2} (Email: ${row.email || "Unknown"}) is missing required field: '${field}'. Please fix the CSV and try again.`,
+        );
+      }
+    }
+
+    cleanedRecords.push(cleanedRow);
+    csvEmailsSet.add(cleanedRow.email as string);
+  }
+
+  // 2. FETCH EXISTING ATTENDEES
+  const csvEmails = Array.from(csvEmailsSet);
   const existingAttendees = await prisma.attendee.findMany({
     where: { email: { in: csvEmails } },
     select: { email: true },
   });
+
   const existingEmailSet = new Set(existingAttendees.map((a) => a.email));
 
-  const newAttendeesData = records
-    .filter((record: any) => !existingEmailSet.has(record.email))
-    .map((record: any) => ({
-      name: record.name,
-      email: record.email,
-      university: record.university,
-      role: record.role,
-      category: record.category,
-      qrToken: uuidv4(),
-    }));
+  // 3. FILTER & PREPARE FOR DATABASE (Single Pass)
+  const newAttendeesData = [];
+  for (let i = 0; i < cleanedRecords.length; i++) {
+    const record = cleanedRecords[i];
+    if (!existingEmailSet.has(record.email)) {
+      newAttendeesData.push({
+        ...record,
+        qrToken: uuidv4(),
+      });
+    }
+  }
 
-  if (newAttendeesData.length === 0) {
+  // 💥 CHANGE 2: Calculate the exact number of attendees we are adding
+  const insertedCount = newAttendeesData.length;
+
+  if (insertedCount === 0) {
     throw new AppError(
       409,
       "All attendees in this CSV are already in the system. No duplicate tickets were created.",
     );
   }
 
+  // 💥 CHANGE 3: Insert into the database BEFORE generating the PDF
+  // This ensures your database updates instantly, even if the PDF takes 10 seconds to build
   await prisma.attendee.createMany({
     data: newAttendeesData,
     skipDuplicates: true,
   });
 
-  const qrLogoPath = path.resolve(process.cwd(), "src/assets/logo.jpg");
-  const deptLogoPath = path.resolve(process.cwd(), "src/assets/dept-logo.jpg");
-  const bannerPath = path.resolve(process.cwd(), "src/assets/banner.jpg");
+  // 4. GENERATE PDF TO OS TEMP STORAGE (Memory Safe)
+  const tempFilePath = await buildPdfTicketsToDisk(newAttendeesData);
 
-  const loadAsset = (filePath: string) =>
-    fs.existsSync(filePath) ? fs.readFileSync(filePath) : null;
+  // 💥 CHANGE 4: Extract the filename and return it to the frontend
+  const fileName = path.basename(tempFilePath);
 
-  const qrLogoBuffer = loadAsset(qrLogoPath);
-  const deptLogoBuffer = loadAsset(deptLogoPath);
-  const bannerBuffer = loadAsset(bannerPath);
+  return {
+    insertedCount, // Send back the exact number of successfully inserted rows
+    fileName, // Send back the filename so the frontend can request the stream
+  };
 
-  const doc = new PDFDocument({ size: "A4", margin: 40 });
-  const buffers: Buffer[] = [];
-
-  doc.on("data", buffers.push.bind(buffers));
-  const pdfStringPromise = new Promise<string>((resolve, reject) => {
-    doc.on("end", () => resolve(Buffer.concat(buffers).toString("base64")));
-    doc.on("error", reject);
-  });
-
-  const ticketWidth = 515;
-  const ticketHeight = 175;
-  const startX = 40;
-  const startYBase = 40;
-  const spacing = 15;
-  const infoWidth = ticketWidth * 0.7;
-  const qrWidth = ticketWidth * 0.3;
-
-  for (let i = 0; i < newAttendeesData.length; i++) {
-    const attendee = newAttendeesData[i];
-
-    if (i > 0 && i % 4 === 0) doc.addPage();
-
-    const currentY = startYBase + (i % 4) * (ticketHeight + spacing);
-
-    if (bannerBuffer) {
-      doc.image(bannerBuffer, startX, currentY, {
-        width: infoWidth,
-        height: ticketHeight,
-      });
-      doc
-        .rect(startX, currentY, infoWidth, ticketHeight)
-        .fillOpacity(0.85)
-        .fill("#0f172a");
-      doc.fillOpacity(1);
-    } else {
-      doc.rect(startX, currentY, infoWidth, ticketHeight).fill("#0f172a");
-    }
-
-    let headerTextX = startX + 20;
-    if (deptLogoBuffer) {
-      doc.image(deptLogoBuffer, startX + 15, currentY + 15, { width: 40 });
-      headerTextX = startX + 65;
-    }
-
-    doc
-      .fillColor("#ffffff")
-      .font("Helvetica-Bold")
-      .fontSize(18)
-      .text("SMUCT CSE FEST V3", headerTextX, currentY + 15, {
-        width: infoWidth - headerTextX + startX,
-      });
-    doc
-      .fontSize(9)
-      .font("Helvetica")
-      .fillColor("#cbd5e1")
-      .text(
-        "Shanto-Mariam University of Creative Technology",
-        headerTextX,
-        currentY + 35,
-      );
-
-    doc.rect(startX + 15, currentY + 65, 90, 20).fill("#ea580c");
-    doc
-      .fillColor("#ffffff")
-      .fontSize(9)
-      .font("Helvetica-Bold")
-      .text("FOOD PASS", startX + 15, currentY + 71, {
-        width: 90,
-        align: "center",
-        characterSpacing: 1,
-      });
-
-    const detailsY = currentY + 95;
-    const labelX = startX + 15;
-    const valueX = startX + 85;
-
-    const drawRow = (label: string, value: string, yOffset: number) => {
-      doc
-        .fontSize(9)
-        .fillColor("#94a3b8")
-        .font("Helvetica")
-        .text(label, labelX, detailsY + yOffset);
-      doc
-        .fontSize(9)
-        .fillColor("#ffffff")
-        .font("Helvetica-Bold")
-        .text(value, valueX, detailsY + yOffset);
-    };
-
-    drawRow("Name:", attendee.name, 0);
-    drawRow("Email:", attendee.email, 16);
-    drawRow("Category:", attendee.category, 32);
-    drawRow("Role:", attendee.role, 48);
-
-    doc
-      .rect(startX + infoWidth, currentY, qrWidth, ticketHeight)
-      .fillAndStroke("#ffffff", "#1e293b");
-
-    doc
-      .fillColor("#1e293b")
-      .fontSize(10)
-      .font("Helvetica-Bold")
-      .text("SCAN FOR FOOD", startX + infoWidth, currentY + 15, {
-        width: qrWidth,
-        align: "center",
-      });
-
-    const qrImage = await QRCode.toBuffer(attendee.qrToken, {
-      errorCorrectionLevel: "H",
-      margin: 1,
-    });
-    const qrSize = 100;
-    const qrX = startX + infoWidth + qrWidth / 2 - qrSize / 2;
-    const qrY = currentY + 35;
-
-    doc.image(qrImage, qrX, qrY, { width: qrSize });
-
-    if (qrLogoBuffer) {
-      const logoSize = 24;
-      const logoX = qrX + qrSize / 2 - logoSize / 2;
-      const logoY = qrY + qrSize / 2 - logoSize / 2;
-
-      doc
-        .rect(logoX - 2, logoY - 2, logoSize + 4, logoSize + 4)
-        .fill("#ffffff");
-      doc.image(qrLogoBuffer, logoX, logoY, { width: logoSize });
-    }
-
-    doc
-      .fontSize(7)
-      .font("Helvetica-Oblique")
-      .fillColor("#94a3b8")
-      .text(
-        "Developed by Shishimaru",
-        startX + infoWidth,
-        currentY + ticketHeight - 15,
-        { width: qrWidth, align: "center" },
-      );
-
-    doc
-      .rect(startX, currentY, ticketWidth, ticketHeight)
-      .lineWidth(1.5)
-      .strokeColor("#1e293b")
-      .stroke();
-  }
-
-  doc.end();
-  return pdfStringPromise;
+  // 💥 CHANGE 5: Removed the fs.readFileSync and the finally { fs.unlinkSync() } block!
+  // The frontend will now call the GET /api/admin/tickets/download-temp/:filename route
+  // to stream the file and show the progress bar.
 };
 
 export const updateLogisticsInventory = async (totalAvailable: number) => {
@@ -216,7 +132,7 @@ export const updateLogisticsInventory = async (totalAvailable: number) => {
 export const getAttendeesList = async (
   searchQuery?: string,
   page: number = 1,
-  limit: number = 50,
+  limit: number = 25,
   status: "ALL" | "CLAIMED" | "PENDING" = "ALL",
 ) => {
   const skip = (page - 1) * limit;
@@ -365,174 +281,20 @@ export const getSystemLogs = async (
   };
 };
 
-export const generateAllTicketsPdfStream = async (
-  res: Response,
-): Promise<void> => {
+// 💥 Extract the Database and PDF logic here
+export const prepareAllTicketsBackup = async (): Promise<string> => {
+  // 1. Fetch all attendees
   const attendees = await prisma.attendee.findMany({
     orderBy: { createdAt: "desc" },
   });
 
   if (!attendees || attendees.length === 0) {
+    // Throw an error that the controller will catch
     throw new Error("No attendees found to generate tickets for.");
   }
 
-  const qrLogoPath = path.resolve(process.cwd(), "src/assets/logo.jpg");
-  const deptLogoPath = path.resolve(process.cwd(), "src/assets/dept-logo.jpg");
-  const bannerPath = path.resolve(process.cwd(), "src/assets/banner.jpg");
+  // 2. Generate PDF via our central utility
+  const tempFilePath = await buildPdfTicketsToDisk(attendees);
 
-  const loadAsset = (filePath: string) =>
-    fs.existsSync(filePath) ? fs.readFileSync(filePath) : null;
-
-  const qrLogoBuffer = loadAsset(qrLogoPath);
-  const deptLogoBuffer = loadAsset(deptLogoPath);
-  const bannerBuffer = loadAsset(bannerPath);
-
-  const doc = new PDFDocument({ size: "A4", margin: 40 });
-
-  res.setHeader("Content-Type", "application/pdf");
-  res.setHeader(
-    "Content-Disposition",
-    `attachment; filename="All_Fest_Tickets_Backup_${Date.now()}.pdf"`,
-  );
-
-  doc.pipe(res);
-
-  const ticketWidth = 515;
-  const ticketHeight = 175;
-  const startX = 40;
-  const startYBase = 40;
-  const spacing = 15;
-  const infoWidth = ticketWidth * 0.7;
-  const qrWidth = ticketWidth * 0.3;
-
-  for (let i = 0; i < attendees.length; i++) {
-    const attendee = attendees[i];
-
-    if (i > 0 && i % 4 === 0) doc.addPage();
-
-    const currentY = startYBase + (i % 4) * (ticketHeight + spacing);
-
-    if (bannerBuffer) {
-      doc.image(bannerBuffer, startX, currentY, {
-        width: infoWidth,
-        height: ticketHeight,
-      });
-      doc
-        .rect(startX, currentY, infoWidth, ticketHeight)
-        .fillOpacity(0.85)
-        .fill("#0f172a");
-      doc.fillOpacity(1);
-    } else {
-      doc.rect(startX, currentY, infoWidth, ticketHeight).fill("#0f172a");
-    }
-
-    let headerTextX = startX + 20;
-    if (deptLogoBuffer) {
-      doc.image(deptLogoBuffer, startX + 15, currentY + 15, { width: 40 });
-      headerTextX = startX + 65;
-    }
-
-    doc
-      .fillColor("#ffffff")
-      .font("Helvetica-Bold")
-      .fontSize(18)
-      .text("SMUCT CSE FEST V3", headerTextX, currentY + 15, {
-        width: infoWidth - headerTextX + startX,
-      });
-    doc
-      .fontSize(9)
-      .font("Helvetica")
-      .fillColor("#cbd5e1")
-      .text(
-        "Shanto-Mariam University of Creative Technology",
-        headerTextX,
-        currentY + 35,
-      );
-
-    doc.rect(startX + 15, currentY + 65, 90, 20).fill("#ea580c");
-    doc
-      .fillColor("#ffffff")
-      .fontSize(9)
-      .font("Helvetica-Bold")
-      .text("FOOD PASS", startX + 15, currentY + 71, {
-        width: 90,
-        align: "center",
-        characterSpacing: 1,
-      });
-
-    const detailsY = currentY + 95;
-    const labelX = startX + 15;
-    const valueX = startX + 85;
-
-    const drawRow = (label: string, value: string, yOffset: number) => {
-      doc
-        .fontSize(9)
-        .fillColor("#94a3b8")
-        .font("Helvetica")
-        .text(label, labelX, detailsY + yOffset);
-      doc
-        .fontSize(9)
-        .fillColor("#ffffff")
-        .font("Helvetica-Bold")
-        .text(value, valueX, detailsY + yOffset);
-    };
-
-    drawRow("Name:", attendee.name || "N/A", 0);
-    drawRow("Email:", attendee.email, 16);
-    drawRow("Category:", attendee.category || "N/A", 32);
-    drawRow("Role:", attendee.role || "N/A", 48);
-
-    doc
-      .rect(startX + infoWidth, currentY, qrWidth, ticketHeight)
-      .fillAndStroke("#ffffff", "#1e293b");
-
-    doc
-      .fillColor("#1e293b")
-      .fontSize(10)
-      .font("Helvetica-Bold")
-      .text("SCAN FOR FOOD", startX + infoWidth, currentY + 15, {
-        width: qrWidth,
-        align: "center",
-      });
-
-    const qrImage = await QRCode.toBuffer(attendee.qrToken, {
-      errorCorrectionLevel: "H",
-      margin: 1,
-    });
-    const qrSize = 100;
-    const qrX = startX + infoWidth + qrWidth / 2 - qrSize / 2;
-    const qrY = currentY + 35;
-
-    doc.image(qrImage, qrX, qrY, { width: qrSize });
-
-    if (qrLogoBuffer) {
-      const logoSize = 24;
-      const logoX = qrX + qrSize / 2 - logoSize / 2;
-      const logoY = qrY + qrSize / 2 - logoSize / 2;
-
-      doc
-        .rect(logoX - 2, logoY - 2, logoSize + 4, logoSize + 4)
-        .fill("#ffffff");
-      doc.image(qrLogoBuffer, logoX, logoY, { width: logoSize });
-    }
-
-    doc
-      .fontSize(7)
-      .font("Helvetica-Oblique")
-      .fillColor("#94a3b8")
-      .text(
-        "Developed by Shishimaru",
-        startX + infoWidth,
-        currentY + ticketHeight - 15,
-        { width: qrWidth, align: "center" },
-      );
-
-    doc
-      .rect(startX, currentY, ticketWidth, ticketHeight)
-      .lineWidth(1.5)
-      .strokeColor("#1e293b")
-      .stroke();
-  }
-
-  doc.end();
+  return tempFilePath;
 };

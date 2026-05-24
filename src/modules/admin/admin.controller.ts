@@ -1,10 +1,13 @@
+import fs from "fs";
+import os from "os";
+import path from "path";
 import { Request, Response } from "express";
 import { catchAsync } from "../../shared/catchAsync";
 import { AppError } from "../../errors/AppError";
 import {
-  generateAllTicketsPdfStream,
   getAttendeesList,
   getSystemLogs,
+  prepareAllTicketsBackup,
   processManualOverride,
   processUploadAndGeneratePDF,
   updateLogisticsInventory,
@@ -18,12 +21,43 @@ import {
 
 export const handleCsvUpload = catchAsync(
   async (req: Request, res: Response) => {
-    if (!req.file) {
-      throw new AppError(400, "No CSV file uploaded.");
+    if (!req.file) throw new AppError(400, "No CSV file uploaded.");
+
+    // Now returns the count and filename
+    const result = await processUploadAndGeneratePDF(req.file.buffer);
+    res.status(200).json(result);
+  },
+);
+
+export const downloadTempPdf = catchAsync(
+  async (req: Request, res: Response) => {
+    const filename = req.params.filename as string;
+    const filePath = path.join(os.tmpdir(), filename);
+
+    if (!fs.existsSync(filePath)) {
+      throw new AppError(
+        404,
+        "File expired or not found. Please upload again.",
+      );
     }
 
-    const base64Pdf = await processUploadAndGeneratePDF(req.file.buffer);
-    res.json({ pdfBase64: base64Pdf });
+    const stat = fs.statSync(filePath);
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Length", stat.size);
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+
+    const readStream = fs.createReadStream(filePath);
+    readStream.pipe(res);
+
+    // 🛡️ Bulletproof cleanup: Triggers on complete success AND sudden disconnects
+    res.on("finish", () => {
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    });
+
+    res.on("close", () => {
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    });
   },
 );
 
@@ -79,12 +113,52 @@ export const downloadAllTickets = async (
   res: Response,
 ): Promise<void> => {
   try {
-    await generateAllTicketsPdfStream(res);
+    // 1. Call the service to handle the DB and PDF generation
+    const tempFilePath = await prepareAllTicketsBackup();
+
+    // 2. Prepare headers for the frontend download stream
+    const stat = fs.statSync(tempFilePath);
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Length", stat.size);
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="All_Fest_Tickets_Backup_${Date.now()}.pdf"`,
+    );
+
+    // 3. Stream the file directly to the response
+    const readStream = fs.createReadStream(tempFilePath);
+    readStream.pipe(res);
+
+    // 4. Automatically clean up the disk after the download finishes
+    readStream.on("end", () => {
+      if (fs.existsSync(tempFilePath)) {
+        fs.unlinkSync(tempFilePath);
+      }
+    });
+
+    // Handle stream interruptions safely
+    readStream.on("error", (err) => {
+      console.error("Stream error:", err);
+      if (fs.existsSync(tempFilePath)) {
+        fs.unlinkSync(tempFilePath);
+      }
+      if (!res.headersSent) {
+        res
+          .status(500)
+          .json({ success: false, message: "File stream interrupted." });
+      }
+    });
   } catch (error: any) {
     console.error("Error generating backup tickets:", error);
 
+    // Handle the 404 error if the database was empty
+    const statusCode =
+      error.message === "No attendees found to generate tickets for."
+        ? 404
+        : 500;
+
     if (!res.headersSent) {
-      res.status(500).json({
+      res.status(statusCode).json({
         success: false,
         message: error.message || "Failed to generate tickets backup.",
       });

@@ -104,6 +104,7 @@ model Attendee {
   // CSV Data Columns
   name       String
   email      String @unique
+  studentId  String
   university String
   role       String // e.g., "Student", "Faculty", "External"
   category   String // e.g., "Datathon", "Hackathon"
