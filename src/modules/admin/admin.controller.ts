@@ -7,10 +7,15 @@ import { AppError } from "../../errors/AppError";
 import {
   getAttendeesList,
   getSystemLogs,
+  getVolunteersList,
   prepareAllTicketsBackup,
   processManualOverride,
   processUploadAndGeneratePDF,
+  registerVolunteerAccount,
+  removeVolunteer,
+  resetEventInventory,
   updateLogisticsInventory,
+  wipeAllAttendees,
 } from "./admin.service";
 import {
   getAttendeesQuerySchema,
@@ -100,12 +105,24 @@ export const handleManualOverride = catchAsync(
 );
 
 export const handleGetLogs = catchAsync(async (req: Request, res: Response) => {
-  const { page, limit, status } = getLogsQuerySchema.parse({
-    query: req.query,
-  }).query;
-  const logsData = await getSystemLogs(page, limit, status);
+  const page = parseInt(req.query.page as string) || 1;
+  const limit = parseInt(req.query.limit as string) || 10;
 
-  res.status(200).json(logsData);
+  const status = req.query.status as any;
+  const search = req.query.search as string;
+  const volunteerName = req.query.volunteerName as string;
+  const category = req.query.category as string;
+
+  const result = await getSystemLogs({
+    page,
+    limit,
+    status,
+    search,
+    volunteerName,
+    category,
+  });
+
+  res.status(200).json({ success: true, data: result });
 });
 
 export const downloadAllTickets = async (
@@ -165,3 +182,51 @@ export const downloadAllTickets = async (
     }
   }
 };
+
+export const resetDatabase = catchAsync(async (req: Request, res: Response) => {
+  const result = await wipeAllAttendees();
+  res.status(200).json({ success: true, ...result });
+});
+
+export const resetLogistics = catchAsync(
+  async (req: Request, res: Response) => {
+    const logistics = await resetEventInventory();
+    res.status(200).json({ success: true, data: logistics });
+  },
+);
+
+export const getVolunteers = catchAsync(async (req: Request, res: Response) => {
+  const volunteers = await getVolunteersList();
+  res.status(200).json({ success: true, data: volunteers });
+});
+
+export const deleteVolunteerController = catchAsync(
+  async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const result = await removeVolunteer(id as string);
+    res.status(200).json({ success: true, ...result });
+  },
+);
+
+export const createVolunteer = catchAsync(
+  async (req: Request, res: Response) => {
+    const { name, email, password } = req.body;
+
+    if (!name || !email || !password) {
+      throw new AppError(
+        400,
+        "Name, email, and password are required to create a volunteer.",
+      );
+    }
+
+    // Call our new service
+    const newUser = await registerVolunteerAccount(name, email, password);
+
+    res.status(201).json({
+      success: true,
+      message:
+        "Volunteer registered successfully. You can now share their login credentials with them.",
+      data: newUser,
+    });
+  },
+);

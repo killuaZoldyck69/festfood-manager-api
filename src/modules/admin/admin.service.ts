@@ -9,6 +9,7 @@ import { AppError } from "../../errors/AppError";
 import { Prisma, ScanStatus } from "../../generated/prisma/client";
 import { Response } from "express";
 import { buildPdfTicketsToDisk } from "../../shared/utils/pdfGenerator.util";
+import { auth } from "../../lib/auth";
 
 interface CsvRow {
   name?: string;
@@ -18,6 +19,15 @@ interface CsvRow {
   role?: string;
   category?: string;
   [key: string]: any;
+}
+
+export interface GetSystemLogsParams {
+  page: number;
+  limit: number;
+  status?: "ALL" | ScanStatus | "MANUAL_OVERRIDE";
+  search?: string;
+  volunteerName?: string;
+  category?: string;
 }
 
 export const processUploadAndGeneratePDF = async (
@@ -231,18 +241,53 @@ export const processManualOverride = async (
   return updatedAttendee;
 };
 
-export const getSystemLogs = async (
-  page: number,
-  limit: number,
-  status: "ALL" | ScanStatus | "MANUAL_OVERRIDE" = "ALL",
-) => {
+export const getSystemLogs = async ({
+  page,
+  limit,
+  status = "ALL",
+  search,
+  volunteerName,
+  category,
+}: GetSystemLogsParams) => {
   const skip = (page - 1) * limit;
   const whereClause: Prisma.ScanLogWhereInput = {};
 
-  if (status !== "ALL") {
+  // 1. Status Filter
+  if (status && status !== "ALL") {
     whereClause.status = status as ScanStatus;
   }
 
+  // 2. Volunteer Name Filter
+  if (volunteerName && volunteerName.trim() !== "") {
+    whereClause.volunteer = {
+      // mode: "insensitive" ensures "John" matches "john"
+      name: { contains: volunteerName.trim(), mode: "insensitive" },
+    };
+  }
+
+  // 3. Attendee Filters (Category + Search)
+  const attendeeFilter: Prisma.AttendeeWhereInput = {};
+
+  if (category && category !== "ALL") {
+    attendeeFilter.category = category;
+  }
+
+  if (search && search.trim() !== "") {
+    const searchTerm = search.trim();
+    attendeeFilter.OR = [
+      { name: { contains: searchTerm, mode: "insensitive" } },
+      { email: { contains: searchTerm, mode: "insensitive" } },
+      { studentId: { contains: searchTerm, mode: "insensitive" } },
+      { university: { contains: searchTerm, mode: "insensitive" } },
+    ];
+  }
+
+  // If we applied any attendee filters, attach them to the main whereClause
+  if (Object.keys(attendeeFilter).length > 0) {
+    whereClause.attendee = attendeeFilter;
+  }
+
+  // Execute queries in parallel
   const [totalLogs, rawLogs] = await Promise.all([
     prisma.scanLog.count({ where: whereClause }),
     prisma.scanLog.findMany({
@@ -252,7 +297,15 @@ export const getSystemLogs = async (
       orderBy: { scannedAt: "desc" },
       include: {
         volunteer: { select: { name: true, role: true } },
-        attendee: { select: { name: true, university: true, category: true } },
+        attendee: {
+          select: {
+            name: true,
+            university: true,
+            category: true,
+            email: true, // Added so the frontend can see why a search matched
+            studentId: true, // Added so the frontend can see why a search matched
+          },
+        },
       },
     }),
   ]);
@@ -267,6 +320,8 @@ export const getSystemLogs = async (
     attendeeName: log.attendee?.name || null,
     attendeeUniversity: log.attendee?.university || null,
     attendeeCategory: log.attendee?.category || null,
+    attendeeEmail: log.attendee?.email || null,
+    attendeeStudentId: log.attendee?.studentId || null,
   }));
 
   return {
@@ -275,13 +330,17 @@ export const getSystemLogs = async (
       currentPage: page,
       totalPages: Math.ceil(totalLogs / limit),
       hasMore: page * limit < totalLogs,
-      currentFilter: status,
+      currentFilters: {
+        status,
+        search: search || null,
+        volunteerName: volunteerName || null,
+        category: category || null,
+      },
     },
     logs: formattedLogs,
   };
 };
 
-// 💥 Extract the Database and PDF logic here
 export const prepareAllTicketsBackup = async (): Promise<string> => {
   // 1. Fetch all attendees
   const attendees = await prisma.attendee.findMany({
@@ -297,4 +356,133 @@ export const prepareAllTicketsBackup = async (): Promise<string> => {
   const tempFilePath = await buildPdfTicketsToDisk(attendees);
 
   return tempFilePath;
+};
+
+// 1. DANGER: Delete All Attendees (and their Scan Logs)
+export const wipeAllAttendees = async () => {
+  // We delete ScanLogs first to ensure a perfectly clean slate,
+  // otherwise, they will just be orphaned with attendeeId = null
+  await prisma.scanLog.deleteMany({});
+
+  const result = await prisma.attendee.deleteMany({});
+
+  return {
+    deletedCount: result.count,
+    message: `Successfully deleted ${result.count} attendees and cleared all scan logs.`,
+  };
+};
+
+// 2. Reset Event Logistics (Singleton Table)
+export const resetEventInventory = async () => {
+  const logistics = await prisma.eventLogistics.upsert({
+    where: { id: 1 },
+    update: { totalAvailable: 0 }, // Reset inventory to 0
+    create: { id: 1, totalAvailable: 0 },
+  });
+
+  return logistics;
+};
+
+// 3. Fetch All Volunteers (For the management list)
+export const getVolunteersList = async () => {
+  // Query 1: Fetch the base volunteer data and their TOTAL scan count
+  const volunteers = await prisma.user.findMany({
+    where: { role: "VOLUNTEER" },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      createdAt: true,
+      _count: {
+        select: { scanLogs: true }, // The total database count
+      },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  // Extract just the IDs to filter our next query
+  const volunteerIds = volunteers.map((v) => v.id);
+
+  // Query 2: Ask the database to count all statuses grouped by Volunteer and Status
+  // This generates a highly optimized SQL GROUP BY query
+  const groupedStats = await prisma.scanLog.groupBy({
+    by: ["volunteerId", "status"],
+    _count: {
+      status: true,
+    },
+    where: {
+      volunteerId: { in: volunteerIds },
+    },
+  });
+
+  // Finally, attach the database counts to the correct volunteer objects
+  return volunteers.map((volunteer) => {
+    // Filter the grouped results for this specific volunteer
+    const myStats = groupedStats.filter(
+      (stat) => stat.volunteerId === volunteer.id,
+    );
+
+    return {
+      id: volunteer.id,
+      name: volunteer.name,
+      email: volunteer.email,
+      createdAt: volunteer.createdAt,
+      stats: {
+        total: volunteer._count.scanLogs,
+        // Safely extract the counts, defaulting to 0 if they haven't made that type of scan yet
+        success:
+          myStats.find((s) => s.status === "SUCCESS")?._count.status || 0,
+        duplicate:
+          myStats.find((s) => s.status === "DUPLICATE")?._count.status || 0,
+        invalid:
+          myStats.find((s) => s.status === "INVALID")?._count.status || 0,
+      },
+    };
+  });
+};
+
+// 4. Delete Volunteer (Cascade)
+export const removeVolunteer = async (volunteerId: string) => {
+  // Because your schema uses `onDelete: Cascade` for accounts, sessions,
+  // and scanLogs on the User model, Prisma will automatically wipe
+  // everything associated with this volunteer safely!
+
+  const existingUser = await prisma.user.findUnique({
+    where: { id: volunteerId },
+  });
+  if (!existingUser) throw new AppError(404, "Volunteer not found.");
+  if (existingUser.role === "ADMIN")
+    throw new AppError(403, "Cannot delete other Admins.");
+
+  await prisma.user.delete({
+    where: { id: volunteerId },
+  });
+
+  return { message: "Volunteer and all associated data successfully deleted." };
+};
+
+export const registerVolunteerAccount = async (
+  name: string,
+  email: string,
+  password: string,
+) => {
+  // 1. Ensure the email isn't already taken
+  const existingUser = await prisma.user.findUnique({ where: { email } });
+  if (existingUser) {
+    throw new AppError(400, "An account with this email already exists.");
+  }
+
+  // 2. Call Better-Auth directly on the server
+  // This hashes the password, creates the Account, and applies your custom 'role' field automatically
+  const result = await auth.api.signUpEmail({
+    body: {
+      email,
+      password,
+      name,
+      role: "VOLUNTEER",
+    },
+  });
+
+  // Return the newly created user data (without returning the session token!)
+  return result.user;
 };

@@ -22,6 +22,15 @@ app.use(
 );
 app.use(express.json());
 
+// 💥 Add this BEFORE the Better-Auth app.all() handler
+app.post("/api/auth/sign-up/email", (req, res) => {
+  res.status(403).json({
+    success: false,
+    message:
+      "Public registration is disabled. Only Admins can create volunteer accounts.",
+  });
+});
+
 app.all("/api/auth/{*any}", toNodeHandler(auth));
 
 app.get("/api/health", async (_req: Request, res: Response) => {
