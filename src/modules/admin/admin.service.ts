@@ -24,7 +24,7 @@ export interface GetSystemLogsParams {
   limit: number;
   status?: "ALL" | ScanStatus | "MANUAL_OVERRIDE";
   search?: string;
-  volunteerName?: string;
+  volunteerEmail?: string;
   category?: string;
 }
 
@@ -169,7 +169,6 @@ export const getAttendeesList = async ({
     const term = searchQuery.trim();
     whereClause.OR = [
       { name: { contains: term, mode: "insensitive" } },
-      { university: { contains: term, mode: "insensitive" } },
       { qrToken: { contains: term, mode: "insensitive" } },
       { email: { contains: term, mode: "insensitive" } },
       { studentId: { contains: term, mode: "insensitive" } },
@@ -267,7 +266,7 @@ export const getSystemLogs = async ({
   limit,
   status = "ALL",
   search,
-  volunteerName,
+  volunteerEmail,
   category,
 }: GetSystemLogsParams) => {
   const skip = (page - 1) * limit;
@@ -278,11 +277,11 @@ export const getSystemLogs = async ({
     whereClause.status = status as ScanStatus;
   }
 
-  // 2. Volunteer Name Filter
-  if (volunteerName && volunteerName.trim() !== "") {
+  // 2. Volunteer Email Filter (Strict Match)
+  if (volunteerEmail && volunteerEmail.trim() !== "") {
     whereClause.volunteer = {
-      // mode: "insensitive" ensures "John" matches "john"
-      name: { contains: volunteerName.trim(), mode: "insensitive" },
+      // 💥 Strict equality match on the email field
+      email: volunteerEmail.trim(),
     };
   }
 
@@ -317,14 +316,15 @@ export const getSystemLogs = async ({
       take: limit,
       orderBy: { scannedAt: "desc" },
       include: {
-        volunteer: { select: { name: true, role: true } },
+        // 💥 Added email to the select so it's available if you want to display it
+        volunteer: { select: { name: true, role: true, email: true } },
         attendee: {
           select: {
             name: true,
             university: true,
             category: true,
-            email: true, // Added so the frontend can see why a search matched
-            studentId: true, // Added so the frontend can see why a search matched
+            email: true,
+            studentId: true,
           },
         },
       },
@@ -337,6 +337,7 @@ export const getSystemLogs = async ({
     scannedToken: log.scannedToken,
     scannedAt: log.scannedAt,
     volunteerName: log.volunteer?.name || "Unknown",
+    volunteerEmail: log.volunteer?.email || "Unknown", // 💥 Included in formatting
     volunteerRole: log.volunteer?.role || "Unknown",
     attendeeName: log.attendee?.name || null,
     attendeeUniversity: log.attendee?.university || null,
@@ -354,7 +355,7 @@ export const getSystemLogs = async ({
       currentFilters: {
         status,
         search: search || null,
-        volunteerName: volunteerName || null,
+        volunteerEmail: volunteerEmail || null, // 💥 Reflected in the meta payload
         category: category || null,
       },
     },
@@ -542,5 +543,73 @@ export const getAttendeeFilterOptions = async () => {
   return {
     categories,
     universities,
+  };
+};
+
+export const getLogFilterOptions = async () => {
+  // 1. Group and count by volunteerId directly on ScanLog
+  const volunteerLogs = await prisma.scanLog.groupBy({
+    by: ["volunteerId"],
+    _count: { id: true },
+  });
+
+  // Fetch the actual names and emails for those specific volunteers
+  const users = await prisma.user.findMany({
+    where: { id: { in: volunteerLogs.map((v) => v.volunteerId) } },
+    select: { id: true, name: true, email: true }, // 💥 Added email here
+  });
+
+  // Map the ID to an object containing both name and email
+  const userMap = new Map(
+    users.map((u) => [u.id, { name: u.name, email: u.email }]),
+  );
+
+  const volunteers = volunteerLogs
+    .map((v) => {
+      const userData = userMap.get(v.volunteerId) || {
+        name: "Unknown",
+        email: "unknown",
+      };
+      return {
+        name: userData.name,
+        email: userData.email,
+        count: v._count.id,
+      };
+    })
+    .sort((a, b) => b.count - a.count); // Highest counts first
+
+  // 2. Group and count by attendeeId directly on ScanLog (ignore nulls)
+  const attendeeLogs = await prisma.scanLog.groupBy({
+    by: ["attendeeId"],
+    where: { attendeeId: { not: null } },
+    _count: { id: true },
+  });
+
+  // Fetch the categories for those specific attendees
+  const attendees = await prisma.attendee.findMany({
+    where: {
+      id: { in: attendeeLogs.map((a) => a.attendeeId as string) },
+    },
+    select: { id: true, category: true },
+  });
+
+  const attendeeMap = new Map(attendees.map((a) => [a.id, a.category]));
+  const categoryMap = new Map<string, number>();
+
+  for (const log of attendeeLogs) {
+    const categoryName = attendeeMap.get(log.attendeeId as string);
+    if (categoryName) {
+      const currentCount = categoryMap.get(categoryName) || 0;
+      categoryMap.set(categoryName, currentCount + log._count.id);
+    }
+  }
+
+  const categories = Array.from(categoryMap.entries())
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count);
+
+  return {
+    categories,
+    volunteers,
   };
 };

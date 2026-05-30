@@ -11,6 +11,7 @@ import {
   handleCsvUpload,
   handleGetAttendeeFilters,
   handleGetAttendees,
+  handleGetLogFilters,
   handleGetLogs,
   handleManualOverride,
   handleUpdateInventory,
@@ -43,5 +44,6 @@ router.post("/volunteers", createVolunteer);
 router.delete("/volunteers/:id", deleteVolunteerController);
 
 router.get("/attendees/filters", handleGetAttendeeFilters);
+router.get("/logs/filters", handleGetLogFilters);
 
 export { router as adminRoutes };

@@ -7,6 +7,7 @@ import { AppError } from "../../errors/AppError";
 import {
   getAttendeeFilterOptions,
   getAttendeesList,
+  getLogFilterOptions,
   getSystemLogs,
   getVolunteersList,
   prepareAllTicketsBackup,
@@ -122,7 +123,7 @@ export const handleGetLogs = catchAsync(async (req: Request, res: Response) => {
 
   const status = req.query.status as any;
   const search = req.query.search as string;
-  const volunteerName = req.query.volunteerName as string;
+  const volunteerEmail = req.query.volunteerEmail as string;
   const category = req.query.category as string;
 
   const result = await getSystemLogs({
@@ -130,7 +131,7 @@ export const handleGetLogs = catchAsync(async (req: Request, res: Response) => {
     limit,
     status,
     search,
-    volunteerName,
+    volunteerEmail,
     category,
   });
 
@@ -246,6 +247,17 @@ export const createVolunteer = catchAsync(
 export const handleGetAttendeeFilters = catchAsync(
   async (req: Request, res: Response) => {
     const filterOptions = await getAttendeeFilterOptions();
+
+    res.status(200).json({
+      success: true,
+      data: filterOptions,
+    });
+  },
+);
+
+export const handleGetLogFilters = catchAsync(
+  async (req: Request, res: Response) => {
+    const filterOptions = await getLogFilterOptions();
 
     res.status(200).json({
       success: true,
