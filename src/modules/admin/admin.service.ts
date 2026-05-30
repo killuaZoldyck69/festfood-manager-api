@@ -1,7 +1,5 @@
 import { v4 as uuidv4 } from "uuid";
 import { parse } from "csv-parse/sync";
-import QRCode from "qrcode";
-import PDFDocument from "pdfkit";
 import { prisma } from "../../lib/prisma";
 import fs from "fs";
 import path from "path";
@@ -28,6 +26,15 @@ export interface GetSystemLogsParams {
   search?: string;
   volunteerName?: string;
   category?: string;
+}
+
+export interface GetAttendeesParams {
+  searchQuery?: string;
+  page?: number;
+  limit?: number;
+  status?: "ALL" | "CLAIMED" | "PENDING";
+  category?: string;
+  university?: string;
 }
 
 export const processUploadAndGeneratePDF = async (
@@ -139,26 +146,35 @@ export const updateLogisticsInventory = async (totalAvailable: number) => {
   });
 };
 
-export const getAttendeesList = async (
-  searchQuery?: string,
-  page: number = 1,
-  limit: number = 25,
-  status: "ALL" | "CLAIMED" | "PENDING" = "ALL",
-) => {
+export const getAttendeesList = async ({
+  searchQuery,
+  page = 1,
+  limit = 25,
+  status = "ALL",
+  category,
+  university,
+}: GetAttendeesParams) => {
   const skip = (page - 1) * limit;
+  const whereClause: Prisma.AttendeeWhereInput = {};
 
-  const whereClause: any = searchQuery
-    ? {
-        OR: [
-          { name: { contains: searchQuery, mode: "insensitive" } },
-          { university: { contains: searchQuery, mode: "insensitive" } },
-          { qrToken: { contains: searchQuery, mode: "insensitive" } },
-        ],
-      }
-    : {};
-
+  // 1. Exact Match Filters
   if (status === "CLAIMED") whereClause.foodClaimed = true;
   else if (status === "PENDING") whereClause.foodClaimed = false;
+
+  if (category && category !== "ALL") whereClause.category = category;
+  if (university && university !== "ALL") whereClause.university = university;
+
+  // 2. Broad Text Search
+  if (searchQuery && searchQuery.trim() !== "") {
+    const term = searchQuery.trim();
+    whereClause.OR = [
+      { name: { contains: term, mode: "insensitive" } },
+      { university: { contains: term, mode: "insensitive" } },
+      { qrToken: { contains: term, mode: "insensitive" } },
+      { email: { contains: term, mode: "insensitive" } },
+      { studentId: { contains: term, mode: "insensitive" } },
+    ];
+  }
 
   const [totalCount, attendees] = await Promise.all([
     prisma.attendee.count({ where: whereClause }),
@@ -192,7 +208,12 @@ export const getAttendeesList = async (
       currentPage: page,
       totalPages: Math.ceil(totalCount / limit),
       hasMore: page * limit < totalCount,
-      currentFilter: status,
+      currentFilters: {
+        status,
+        category: category || "ALL",
+        university: university || "ALL",
+        search: searchQuery || null,
+      },
     },
     attendees: formattedAttendees,
   };
@@ -485,4 +506,41 @@ export const registerVolunteerAccount = async (
 
   // Return the newly created user data (without returning the session token!)
   return result.user;
+};
+
+export const getAttendeeFilterOptions = async () => {
+  const [categoryResult, universityResult] = await Promise.all([
+    // Group by category and count
+    prisma.attendee.groupBy({
+      by: ["category"],
+      _count: { category: true },
+      orderBy: { category: "asc" },
+    }),
+    // Group by university and count
+    prisma.attendee.groupBy({
+      by: ["university"],
+      _count: { university: true },
+      orderBy: { university: "asc" },
+    }),
+  ]);
+
+  // Clean the data: extract name and count, and filter out any null/empty strings
+  const categories = categoryResult
+    .filter((item) => item.category)
+    .map((item) => ({
+      name: item.category as string,
+      count: item._count.category,
+    }));
+
+  const universities = universityResult
+    .filter((item) => item.university)
+    .map((item) => ({
+      name: item.university as string,
+      count: item._count.university,
+    }));
+
+  return {
+    categories,
+    universities,
+  };
 };

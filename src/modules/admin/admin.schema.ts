@@ -34,8 +34,12 @@ export const getLogsQuerySchema = z.object({
 });
 
 export const getAttendeesQuerySchema = z.object({
-  query: paginationSchema.extend({
+  query: z.object({
     search: z.string().optional(),
-    status: z.enum(["ALL", "CLAIMED", "PENDING"]).optional().default("ALL"),
+    page: z.coerce.number().min(1).default(1),
+    limit: z.coerce.number().min(1).default(25),
+    status: z.enum(["ALL", "CLAIMED", "PENDING"]).default("ALL"),
+    category: z.string().optional(),
+    university: z.string().optional(),
   }),
 });

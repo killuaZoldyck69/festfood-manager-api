@@ -5,6 +5,7 @@ import { Request, Response } from "express";
 import { catchAsync } from "../../shared/catchAsync";
 import { AppError } from "../../errors/AppError";
 import {
+  getAttendeeFilterOptions,
   getAttendeesList,
   getSystemLogs,
   getVolunteersList,
@@ -82,10 +83,21 @@ export const handleUpdateInventory = catchAsync(
 
 export const handleGetAttendees = catchAsync(
   async (req: Request, res: Response) => {
-    const { search, page, limit, status } = getAttendeesQuerySchema.parse({
-      query: req.query,
-    }).query;
-    const result = await getAttendeesList(search, page, limit, status);
+    // Extract everything from your validated Zod query
+    const { search, page, limit, status, category, university } =
+      getAttendeesQuerySchema.parse({
+        query: req.query,
+      }).query;
+
+    // Pass as an object matching the GetAttendeesParams interface
+    const result = await getAttendeesList({
+      searchQuery: search,
+      page,
+      limit,
+      status,
+      category,
+      university,
+    });
 
     res.status(200).json(result);
   },
@@ -227,6 +239,17 @@ export const createVolunteer = catchAsync(
       message:
         "Volunteer registered successfully. You can now share their login credentials with them.",
       data: newUser,
+    });
+  },
+);
+
+export const handleGetAttendeeFilters = catchAsync(
+  async (req: Request, res: Response) => {
+    const filterOptions = await getAttendeeFilterOptions();
+
+    res.status(200).json({
+      success: true,
+      data: filterOptions,
     });
   },
 );

@@ -9,6 +9,7 @@ import {
   downloadTempPdf,
   getVolunteers,
   handleCsvUpload,
+  handleGetAttendeeFilters,
   handleGetAttendees,
   handleGetLogs,
   handleManualOverride,
@@ -40,5 +41,7 @@ router.post("/logistics/reset", resetLogistics);
 router.get("/volunteers", getVolunteers);
 router.post("/volunteers", createVolunteer);
 router.delete("/volunteers/:id", deleteVolunteerController);
+
+router.get("/attendees/filters", handleGetAttendeeFilters);
 
 export { router as adminRoutes };
