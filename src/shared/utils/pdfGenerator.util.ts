@@ -91,11 +91,11 @@ export const buildPdfTicketsToDisk = async (
         characterSpacing: 1,
       });
 
-    const detailsY = currentY + 95;
+    // 💥 Moved the starting Y position slightly up to fit the new rows
+    const detailsY = currentY + 90;
     const labelX = startX + 15;
     const valueX = startX + 85;
 
-    // 💥 The max width ensures long university names don't crash into the QR code
     const maxTextWidth = infoWidth - 95;
 
     const drawRow = (label: string, value: string, yOffset: number) => {
@@ -111,18 +111,22 @@ export const buildPdfTicketsToDisk = async (
         .font("Helvetica-Bold")
         .text(value, valueX, detailsY + yOffset, {
           width: maxTextWidth,
-          lineBreak: false, // Prevents text from wrapping to the next line
-          ellipsis: true, // Adds "..." if the text is too long
+          lineBreak: false,
+          ellipsis: true,
         });
     };
 
-    // 💥 Added the University row and expanded the spacing
+    // 💥 Formatted Semester and Section together to save vertical space
+    const semSecString = `${attendee.semester || "N/A"} / ${attendee.section || "N/A"}`;
+
+    // 💥 Reduced spacing from 14 to 12 to cleanly fit all 7 rows inside the ticket
     drawRow("Name:", attendee.name, 0);
-    drawRow("ID:", attendee.studentId, 14);
-    drawRow("Email:", attendee.email, 28);
-    drawRow("University:", attendee.university, 42); // NEW
-    drawRow("Category:", attendee.category, 56);
-    drawRow("Role:", attendee.role, 70);
+    drawRow("ID:", attendee.studentId, 12);
+    drawRow("Sem & Sec:", semSecString, 24); // 💥 NEW
+    drawRow("Email:", attendee.email, 36);
+    drawRow("University:", attendee.university, 48);
+    drawRow("Category:", attendee.category, 60);
+    drawRow("Role:", attendee.role, 72);
 
     doc
       .rect(startX + infoWidth, currentY, qrWidth, ticketHeight)

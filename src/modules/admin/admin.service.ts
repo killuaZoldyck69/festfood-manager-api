@@ -16,6 +16,8 @@ interface CsvRow {
   university?: string;
   role?: string;
   category?: string;
+  semester?: string;
+  section?: string;
   [key: string]: any;
 }
 
@@ -45,6 +47,7 @@ export const processUploadAndGeneratePDF = async (
     skip_empty_lines: true,
   }) as CsvRow[];
 
+  // 💥 ADDED semester and section to required fields
   const requiredFields = [
     "name",
     "email",
@@ -52,6 +55,8 @@ export const processUploadAndGeneratePDF = async (
     "university",
     "role",
     "category",
+    "semester",
+    "section",
   ];
 
   const cleanedRecords: any[] = [];
@@ -69,6 +74,8 @@ export const processUploadAndGeneratePDF = async (
       university: String(row.university || "").trim(),
       role: String(row.role || "").trim(),
       category: String(row.category || "").trim(),
+      semester: String(row.semester || "").trim(), // 💥 NEW
+      section: String(row.section || "").trim(), // 💥 NEW
     };
 
     for (const field of requiredFields) {
@@ -93,7 +100,7 @@ export const processUploadAndGeneratePDF = async (
 
   const existingEmailSet = new Set(existingAttendees.map((a) => a.email));
 
-  // 3. FILTER & PREPARE FOR DATABASE (Single Pass)
+  // 3. FILTER & PREPARE FOR DATABASE
   const newAttendeesData = [];
   for (let i = 0; i < cleanedRecords.length; i++) {
     const record = cleanedRecords[i];
@@ -105,7 +112,6 @@ export const processUploadAndGeneratePDF = async (
     }
   }
 
-  // 💥 CHANGE 2: Calculate the exact number of attendees we are adding
   const insertedCount = newAttendeesData.length;
 
   if (insertedCount === 0) {
@@ -115,27 +121,19 @@ export const processUploadAndGeneratePDF = async (
     );
   }
 
-  // 💥 CHANGE 3: Insert into the database BEFORE generating the PDF
-  // This ensures your database updates instantly, even if the PDF takes 10 seconds to build
   await prisma.attendee.createMany({
     data: newAttendeesData,
     skipDuplicates: true,
   });
 
-  // 4. GENERATE PDF TO OS TEMP STORAGE (Memory Safe)
+  // 4. GENERATE PDF
   const tempFilePath = await buildPdfTicketsToDisk(newAttendeesData);
-
-  // 💥 CHANGE 4: Extract the filename and return it to the frontend
   const fileName = path.basename(tempFilePath);
 
   return {
-    insertedCount, // Send back the exact number of successfully inserted rows
-    fileName, // Send back the filename so the frontend can request the stream
+    insertedCount,
+    fileName,
   };
-
-  // 💥 CHANGE 5: Removed the fs.readFileSync and the finally { fs.unlinkSync() } block!
-  // The frontend will now call the GET /api/admin/tickets/download-temp/:filename route
-  // to stream the file and show the progress bar.
 };
 
 export const updateLogisticsInventory = async (totalAvailable: number) => {
@@ -325,6 +323,8 @@ export const getSystemLogs = async ({
             category: true,
             email: true,
             studentId: true,
+            semester: true,
+            section: true,
           },
         },
       },
@@ -344,6 +344,8 @@ export const getSystemLogs = async ({
     attendeeCategory: log.attendee?.category || null,
     attendeeEmail: log.attendee?.email || null,
     attendeeStudentId: log.attendee?.studentId || null,
+    attendeeSemester: log.attendee?.semester || null,
+    attendeeSection: log.attendee?.section || null,
   }));
 
   return {

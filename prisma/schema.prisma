@@ -108,6 +108,8 @@ model Attendee {
   university String
   role       String // e.g., "Student", "Faculty", "External"
   category   String // e.g., "Datathon", "Hackathon"
+  semester   String
+  section    String
 
   // Security & Logistics
   qrToken     String    @unique // The exact string embedded in the PDF QR Code
