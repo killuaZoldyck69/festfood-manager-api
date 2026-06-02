@@ -9,9 +9,9 @@ import fs from "fs";
 export const buildPdfTicketsToDisk = async (
   attendees: any[],
 ): Promise<string> => {
-  const qrLogoPath = path.resolve(process.cwd(), "src/assets/logo.jpg");
-  const deptLogoPath = path.resolve(process.cwd(), "src/assets/dept-logo.jpg");
-  const bannerPath = path.resolve(process.cwd(), "src/assets/banner.jpg");
+  const qrLogoPath = path.resolve(process.cwd(), "src/assets/logo.png");
+  const deptLogoPath = path.resolve(process.cwd(), "src/assets/dept-logo.png");
+  const bannerPath = path.resolve(process.cwd(), "src/assets/banner.png");
 
   const loadAsset = (filePath: string) =>
     fs.existsSync(filePath) ? fs.readFileSync(filePath) : null;
@@ -32,7 +32,7 @@ export const buildPdfTicketsToDisk = async (
   const startX = 40;
   const startYBase = 40;
   const spacing = 15;
-  const infoWidth = ticketWidth * 0.7;
+  const infoWidth = ticketWidth * 0.7; // 360.5px
   const qrWidth = ticketWidth * 0.3;
 
   for (let i = 0; i < attendees.length; i++) {
@@ -42,6 +42,7 @@ export const buildPdfTicketsToDisk = async (
 
     const currentY = startYBase + (i % 4) * (ticketHeight + spacing);
 
+    // --- 1. BACKGROUND ---
     if (bannerBuffer) {
       doc.image(bannerBuffer, startX, currentY, {
         width: infoWidth,
@@ -56,78 +57,95 @@ export const buildPdfTicketsToDisk = async (
       doc.rect(startX, currentY, infoWidth, ticketHeight).fill("#0f172a");
     }
 
-    let headerTextX = startX + 20;
+    // --- 2 & 3. LEFT-ALIGNED HEADER (Logo, Title, Subtitle) ---
+    const titleText = "SMUCT CSE FEST V3";
+    const subtitleText = "Organized by Department of CSE and CSIT.";
+
+    const logoSize = 42; // 💥 Increased from 32 for a bolder, professional presence
+    const gap = 14; // 💥 Slightly wider gap so the text doesn't feel crowded
+
+    // Align exactly with the left edge of the "FOOD PASS" badge
+    const headerStartX = startX + 15;
+    const textStartX = deptLogoBuffer
+      ? headerStartX + logoSize + gap
+      : headerStartX;
+
     if (deptLogoBuffer) {
-      doc.image(deptLogoBuffer, startX + 15, currentY + 15, { width: 40 });
-      headerTextX = startX + 65;
+      // 💥 Moved slightly up to currentY + 12 to perfectly balance the larger size
+      doc.image(deptLogoBuffer, headerStartX, currentY + 12, {
+        width: logoSize,
+      });
     }
 
+    // Title (Vertically aligned with the upper half of the larger logo)
     doc
-      .fillColor("#ffffff")
+      .fontSize(16)
       .font("Helvetica-Bold")
-      .fontSize(18)
-      .text("SMUCT CSE FEST V3", headerTextX, currentY + 15, {
-        width: infoWidth - headerTextX + startX,
-      });
+      .fillColor("#ffffff")
+      .text(titleText, textStartX, currentY + 18); // Adjusted Y
 
+    // Subtitle (Vertically aligned with the lower half of the larger logo)
     doc
       .fontSize(9)
       .font("Helvetica")
       .fillColor("#cbd5e1")
-      .text(
-        "Shanto-Mariam University of Creative Technology",
-        headerTextX,
-        currentY + 35,
-      );
+      .text(subtitleText, textStartX, currentY + 38); // Adjusted Y
 
-    doc.rect(startX + 15, currentY + 65, 90, 20).fill("#ea580c");
+    // --- 4. BADGE ---
+    doc.rect(startX + 15, currentY + 62, 80, 18).fill("#ea580c");
     doc
       .fillColor("#ffffff")
       .fontSize(9)
       .font("Helvetica-Bold")
-      .text("FOOD PASS", startX + 15, currentY + 71, {
-        width: 90,
+      .text("FOOD PASS", startX + 15, currentY + 67, {
+        width: 80,
         align: "center",
         characterSpacing: 1,
       });
 
-    // 💥 Moved the starting Y position slightly up to fit the new rows
-    const detailsY = currentY + 90;
+    // --- 5. ATTENDEE DETAILS (De-congested) ---
+    const detailsY = currentY + 86; // Shifted up slightly
     const labelX = startX + 15;
-    const valueX = startX + 85;
-
+    const valueX = startX + 80; // Brought slightly closer to labels for readability
     const maxTextWidth = infoWidth - 95;
 
-    const drawRow = (label: string, value: string, yOffset: number) => {
+    const drawRow = (
+      label: string,
+      value: string,
+      yOffset: number,
+      isName = false,
+    ) => {
+      // Label
       doc
         .fontSize(9)
-        .fillColor("#94a3b8")
+        .fillColor("#94a3b8") // Softer gray for labels
         .font("Helvetica")
         .text(label, labelX, detailsY + yOffset);
 
+      // Value
       doc
-        .fontSize(9)
-        .fillColor("#ffffff")
+        .fontSize(isName ? 10 : 9) // Highlight the Name slightly
+        .fillColor(isName ? "#ffffff" : "#f8fafc")
         .font("Helvetica-Bold")
-        .text(value, valueX, detailsY + yOffset, {
+        .text(value, valueX, detailsY + yOffset - (isName ? 0.5 : 0), {
           width: maxTextWidth,
           lineBreak: false,
           ellipsis: true,
         });
     };
 
-    // 💥 Formatted Semester and Section together to save vertical space
     const semSecString = `${attendee.semester || "N/A"} / ${attendee.section || "N/A"}`;
 
-    // 💥 Reduced spacing from 14 to 12 to cleanly fit all 7 rows inside the ticket
-    drawRow("Name:", attendee.name, 0);
-    drawRow("ID:", attendee.studentId, 12);
-    drawRow("Sem & Sec:", semSecString, 24); // 💥 NEW
-    drawRow("Email:", attendee.email, 36);
-    drawRow("University:", attendee.university, 48);
-    drawRow("Category:", attendee.category, 60);
-    drawRow("Role:", attendee.role, 72);
+    // Increased spacing from 12 back to 14, and removed the Role row
+    drawRow("Name:", attendee.name, 0, true);
+    drawRow("ID:", attendee.studentId, 14);
+    drawRow("Sem/Sec:", semSecString, 28);
+    drawRow("Email:", attendee.email, 42);
+    drawRow("University:", attendee.university, 56);
+    drawRow("Category:", attendee.category, 70);
+    // Role removed to prevent visual clutter
 
+    // --- 6. QR CODE SECTION (Right Side) ---
     doc
       .rect(startX + infoWidth, currentY, qrWidth, ticketHeight)
       .fillAndStroke("#ffffff", "#1e293b");
