@@ -1,12 +1,14 @@
-import { Prisma, ScanStatus } from "../../generated/prisma/client";
+import { Prisma } from "../../../prisma/generated/client";
+import { ScanStatus } from "../../../prisma/generated/enums";
 import { prisma } from "../../lib/prisma";
+import { PaginatedVolunteerLogs } from "./volunteer.types";
 
 export const getVolunteerLogs = async (
   volunteerId: string,
   page: number,
   limit: number,
   status?: ScanStatus,
-) => {
+): Promise<PaginatedVolunteerLogs> => {
   const skip = (page - 1) * limit;
 
   const whereClause: Prisma.ScanLogWhereInput = { volunteerId };
@@ -15,7 +17,7 @@ export const getVolunteerLogs = async (
     whereClause.status = status;
   }
 
-  const [totalLogs, rawLogs] = await Promise.all([
+  const [total, rawLogs] = await Promise.all([
     prisma.scanLog.count({ where: whereClause }),
     prisma.scanLog.findMany({
       where: whereClause,
@@ -33,7 +35,7 @@ export const getVolunteerLogs = async (
   const formattedLogs = rawLogs.map((log) => ({
     id: log.id,
     status: log.status,
-    scannedToken: log.scannedToken,
+    scannedToken: log.scannedToken || "", // Fallback to satisfy strict string type
     scannedAt: log.scannedAt,
     attendeeName: log.attendee?.name || null,
     attendeeUniversity: log.attendee?.university || null,
@@ -41,12 +43,13 @@ export const getVolunteerLogs = async (
   }));
 
   return {
+    data: formattedLogs,
     meta: {
-      totalLogs,
-      currentPage: page,
-      totalPages: Math.ceil(totalLogs / limit),
-      hasMore: page * limit < totalLogs,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+      hasMore: page * limit < total,
     },
-    logs: formattedLogs,
   };
 };

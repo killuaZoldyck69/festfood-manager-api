@@ -6,4 +6,4 @@ const router = Router();
 
 router.get("/logs", requireAuth, handleGetVolunteerLogs);
 
-export { router as volunteerRoutes };
+export const volunteerRoutes = router;

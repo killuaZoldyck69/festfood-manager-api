@@ -1,11 +1,8 @@
 import { z } from "zod";
+import { ScanStatus } from "../../../prisma/generated/enums";
 
 export const getVolunteerLogsSchema = z.object({
-  query: z.object({
-    page: z.string().optional().default("1").transform(Number),
-    limit: z.string().optional().default("10").transform(Number),
-    status: z
-      .enum(["SUCCESS", "INVALID", "DUPLICATE", "MANUAL_OVERRIDE"])
-      .optional(),
-  }),
+  page: z.coerce.number().min(1).default(1),
+  limit: z.coerce.number().min(1).max(100).default(10),
+  status: z.nativeEnum(ScanStatus).optional(),
 });
