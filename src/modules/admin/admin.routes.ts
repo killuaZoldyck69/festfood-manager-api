@@ -1,7 +1,8 @@
 import { Router } from "express";
 import multer from "multer";
-import { requireAuth } from "../../middlewares/authMiddleware";
-import { requireAdmin } from "../../middlewares/adminMiddleware";
+import rateLimit from "express-rate-limit";
+import { requireAuth, requireAdmin } from "../../middlewares";
+import { AppError } from "../../errors/AppError";
 import {
   createVolunteer,
   deleteVolunteerController,
@@ -20,7 +21,30 @@ import {
 } from "./admin.controller";
 
 const router = Router();
-const upload = multer({ storage: multer.memoryStorage() });
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024, files: 1 },
+  fileFilter: (_req, file, cb) => {
+    const isCSV =
+      file.mimetype === "text/csv" || file.originalname.endsWith(".csv");
+    if (isCSV) {
+      cb(null, true);
+    } else {
+      cb(new AppError(400, "Only CSV files are allowed."));
+    }
+  },
+});
+
+const volunteerCreationLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: {
+    success: false,
+    message: "Too many volunteer creation attempts. Please try again later.",
+    errorSources: [],
+  },
+});
 
 router.use(requireAuth, requireAdmin);
 
@@ -32,18 +56,14 @@ router.get("/logs", handleGetLogs);
 router.get("/tickets/download-all", downloadAllTickets);
 router.get("/tickets/download-temp/:filename", downloadTempPdf);
 
-// --- DANGER ZONE ROUTES ---
-// router.use(requireAdmin); // Apply admin-only protection here
-
 router.delete("/attendees/wipe", resetDatabase);
 router.post("/logistics/reset", resetLogistics);
 
-// --- VOLUNTEER MANAGEMENT ROUTES ---
 router.get("/volunteers", getVolunteers);
-router.post("/volunteers", createVolunteer);
+router.post("/volunteers", volunteerCreationLimiter, createVolunteer);
 router.delete("/volunteers/:id", deleteVolunteerController);
 
 router.get("/attendees/filters", handleGetAttendeeFilters);
 router.get("/logs/filters", handleGetLogFilters);
 
-export { router as adminRoutes };
+export const adminRoutes = router;

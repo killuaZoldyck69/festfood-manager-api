@@ -277,3 +277,26 @@ export const getAttendeeFilterOptions = async (): Promise<{
 
   return { categories, universities };
 };
+
+export const prepareAllTicketsBackup = async (): Promise<string> => {
+  const attendees = await prisma.attendee.findMany({
+    orderBy: { createdAt: "desc" },
+  });
+
+  if (!attendees || attendees.length === 0) {
+    throw new AppError(404, "No attendees found to generate tickets for.");
+  }
+
+  const ticketDataForPdf = attendees.map((a) => ({
+    name: a.name,
+    email: a.email,
+    studentId: a.studentId,
+    university: a.university,
+    category: a.category,
+    semester: a.semester || "",
+    section: a.section || "",
+    qrToken: a.qrToken,
+  }));
+
+  return await buildPdfTicketsToDisk(ticketDataForPdf);
+};
