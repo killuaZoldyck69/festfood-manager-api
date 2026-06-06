@@ -15,6 +15,8 @@ export interface AttendeeListItem {
   claimedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
+  scannerName: string | null;
+  scannerRole: string | null;
 }
 
 export interface AttendeeFilterOptions {
