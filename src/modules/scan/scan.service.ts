@@ -1,7 +1,13 @@
-// src/modules/scan/scan.service.ts
 import { prisma } from "../../lib/prisma";
+import { assertInventoryAvailable } from "../../shared/utils/inventory";
+import { AppError } from "../../errors/AppError";
+import { ScanResult } from "./scan.types";
+import { logger } from "../../shared/logger";
 
-export const processScan = async (qrToken: string, volunteerId: string) => {
+export const processScan = async (
+  qrToken: string,
+  volunteerId: string,
+): Promise<ScanResult> => {
   const attendee = await prisma.attendee.findUnique({
     where: { qrToken },
   });
@@ -10,10 +16,10 @@ export const processScan = async (qrToken: string, volunteerId: string) => {
     await prisma.scanLog.create({
       data: { status: "INVALID", volunteerId, scannedToken: qrToken },
     });
+    logger.info({ qrToken, volunteerId }, "Scan failed: Invalid token");
     return {
       status: "INVALID",
       message: "Ticket not found or unrecognized.",
-      code: 404,
     };
   }
 
@@ -26,27 +32,30 @@ export const processScan = async (qrToken: string, volunteerId: string) => {
         scannedToken: qrToken,
       },
     });
+    logger.info(
+      { attendeeId: attendee.id, volunteerId },
+      "Scan failed: Duplicate ticket",
+    );
     return {
       status: "DUPLICATE",
       message: "This ticket has already been used!",
       attendee: { name: attendee.name, claimedAt: attendee.claimedAt },
-      code: 409,
     };
   }
 
-  // 💥 NEW: Strict Inventory Validation 💥
-  const logistics = await prisma.eventLogistics.findUnique({
-    where: { id: 1 },
-  });
-  if (!logistics || logistics.totalAvailable <= 0) {
-    return {
-      status: "DEPLETED",
-      message: "Scan failed: No food available in inventory.",
-      code: 400, // Bad Request
-    };
+  try {
+    await assertInventoryAvailable();
+  } catch (error) {
+    const message =
+      error instanceof AppError ? error.message : "Inventory depleted.";
+    logger.warn(
+      { attendeeId: attendee.id, volunteerId },
+      "Scan failed: Depleted inventory",
+    );
+    return { status: "DEPLETED", message };
   }
 
-  const [updatedAttendee, log, logisticsUpdate] = await prisma.$transaction([
+  const [updatedAttendee] = await prisma.$transaction([
     prisma.attendee.update({
       where: { id: attendee.id },
       data: { foodClaimed: true, claimedAt: new Date() },
@@ -65,10 +74,14 @@ export const processScan = async (qrToken: string, volunteerId: string) => {
     }),
   ]);
 
+  logger.info(
+    { attendeeId: attendee.id, volunteerId },
+    "Scan successful: Food claimed",
+  );
+
   return {
     status: "SUCCESS",
     message: "Ticket validated! Serve the food.",
     attendee: updatedAttendee,
-    code: 200,
   };
 };
