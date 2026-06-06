@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from "uuid";
 import { parse } from "csv-parse/sync";
 import { z } from "zod";
+import path from "path";
 import { prisma } from "../../../lib/prisma";
 import { AppError } from "../../../errors/AppError";
 import { buildPdfTicketsToDisk } from "../../../shared/utils/pdfGenerator";
@@ -15,9 +16,15 @@ import {
 } from "../types/attendee.types";
 import { Prisma } from "../../../../prisma/generated/client";
 
+const emailValidator = z
+  .string()
+  .refine((val) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val), {
+    message: "Invalid email address format",
+  });
+
 const csvRowSchema = z.object({
   name: z.string().min(1),
-  email: z.string().email(),
+  email: emailValidator,
   studentId: z.string().min(1),
   university: z.string().min(1),
   role: z.string().min(1),
@@ -32,7 +39,7 @@ export const uploadAttendeesFromCsv = async (
   const records = parse(fileBuffer, {
     columns: true,
     skip_empty_lines: true,
-  }) as Record<string, any>[]; // Explicit cast to fix 'unknown' type error
+  }) as Record<string, unknown>[];
 
   const cleanedRecords: CsvRow[] = [];
   const csvEmailsSet = new Set<string>();
@@ -105,7 +112,9 @@ export const uploadAttendeesFromCsv = async (
   }));
 
   const tempFilePath = await buildPdfTicketsToDisk(ticketDataForPdf);
-  const fileName = require("path").basename(tempFilePath);
+
+  // 💥 Fix: Replaced inline require() with standard ESM path.basename
+  const fileName = path.basename(tempFilePath);
 
   return { insertedCount, fileName };
 };
