@@ -1,24 +1,30 @@
 import dotenv from "dotenv";
+import { z } from "zod";
 
 dotenv.config();
 
-const envConfig = {
-  port: process.env.PORT || 5000,
-  nodeEnv: process.env.NODE_ENV || "development",
-  databaseUrl: process.env.DATABASE_URL,
-  betterAuthSecret: process.env.BETTER_AUTH_SECRET,
-  betterAuthUrl: process.env.BETTER_AUTH_URL,
-  appUrl: process.env.APP_URL,
-};
+const urlValidator = z.string().refine(
+  (url) => {
+    try {
+      new URL(url);
+      return true;
+    } catch {
+      return false;
+    }
+  },
+  { message: "Invalid URL format" },
+);
 
-// Type Guards: Force the server to crash IMMEDIATELY if a critical variable is missing
-if (!envConfig.databaseUrl) {
-  throw new Error("FATAL ERROR: DATABASE_URL is missing from your .env file!");
-}
+const envSchema = z.object({
+  DATABASE_URL: urlValidator,
+  BETTER_AUTH_SECRET: z.string().min(32),
+  BETTER_AUTH_URL: urlValidator,
+  PORT: z.coerce.number().default(3000),
+  NODE_ENV: z
+    .enum(["development", "production", "test"])
+    .default("development"),
+  APP_URL: urlValidator.optional(),
+  TRUSTED_ORIGINS: z.string().optional(),
+});
 
-if (!envConfig.betterAuthSecret) {
-  throw new Error(
-    "FATAL ERROR: BETTER_AUTH_SECRET is missing from your .env file!",
-  );
-}
-export default envConfig;
+export const envConfig = envSchema.parse(process.env);
