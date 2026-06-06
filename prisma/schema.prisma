@@ -7,26 +7,21 @@ datasource db {
   provider = "postgresql"
 }
 
-// ------------------------------------------------------
-// 1. BETTER-AUTH CORE MODELS (Required for Authentication)
-// ------------------------------------------------------
-
 model User {
-  id            String   @id @default(uuid())
+  id            String    @id @default(uuid())
   name          String
-  email         String   @unique
-  emailVerified Boolean  @default(false)
+  email         String    @unique
+  emailVerified Boolean   @default(false)
   image         String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
 
-  // Custom Field: Differentiates Admin vs Volunteer
   role Role @default(VOLUNTEER)
 
-  // Relations
   sessions Session[]
   accounts Account[]
-  scanLogs ScanLog[] // History of scans performed by this volunteer
+  scanLogs ScanLog[]
 
   @@map("user")
 }
@@ -60,9 +55,9 @@ model Account {
   password              String?
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
+  idToken               String?
 
-  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  idToken String?
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@map("account")
@@ -80,10 +75,6 @@ model Verification {
   @@map("verification")
 }
 
-// ------------------------------------------------------
-// 2. FESTFOOD MANAGER DOMAIN MODELS
-// ------------------------------------------------------
-
 enum Role {
   ADMIN
   VOLUNTEER
@@ -96,59 +87,44 @@ enum ScanStatus {
   MANUAL_OVERRIDE
 }
 
-// Represents a single person from your CSV Upload
-
 model Attendee {
-  id String @id @default(uuid())
-
-  // CSV Data Columns
+  id         String @id @default(uuid())
   name       String
   email      String @unique
   studentId  String
   university String
-  role       String // e.g., "Student", "Faculty", "External"
-  category   String // e.g., "Datathon", "Hackathon"
+  role       String
+  category   String
   semester   String
   section    String
 
-  // Security & Logistics
-  qrToken     String    @unique // The exact string embedded in the PDF QR Code
+  qrToken     String    @unique
   foodClaimed Boolean   @default(false)
-  claimedAt   DateTime? // Exact time the food was handed out
+  claimedAt   DateTime?
 
-  // Relations
   scanLogs ScanLog[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
-// The Audit Trail (Populates the Volunteer Dashboard and Admin Directory)
-
 model ScanLog {
   id String @id @default(uuid())
 
-  // What was the result of this scan?
   status ScanStatus
 
-  // Who performed the scan?
   volunteerId String
   volunteer   User   @relation(fields: [volunteerId], references: [id], onDelete: Cascade)
 
-  // Who was scanned? (Optional because an "INVALID" scan might not match an Attendee)
   attendeeId String?
   attendee   Attendee? @relation(fields: [attendeeId], references: [id], onDelete: SetNull)
 
-  // For debugging invalid QR codes
   scannedToken String?
-
-  scannedAt DateTime @default(now())
+  scannedAt    DateTime @default(now())
 }
 
-// Singleton Table to hold Event-Wide Configurations (Screen 5 Inventory Override)
-
 model EventLogistics {
-  id             Int      @id @default(1) // Only one row will ever exist
-  totalAvailable Int      @default(0) // Admin can manually adjust this
+  id             Int      @id @default(1)
+  totalAvailable Int      @default(0)
   updatedAt      DateTime @updatedAt
 }

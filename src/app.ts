@@ -19,7 +19,7 @@ app.use(helmet());
 const allowedOrigins =
   envConfig.NODE_ENV === "production"
     ? [envConfig.APP_URL as string]
-    : ["http://localhost:8081", "http://localhost:3000"];
+    : ["http://localhost:8081", "http://192.168.0.101:8081"];
 
 app.use(
   cors({
@@ -47,7 +47,7 @@ app.post("/api/auth/sign-up/email", (req: Request, res: Response) => {
   });
 });
 
-app.all("/api/auth/*", toNodeHandler(auth));
+app.all("/api/auth/{*any}", toNodeHandler(auth));
 
 app.use("/api/v1/scan", scanRoutes);
 app.use("/api/v1/inventory", inventoryRoutes);
