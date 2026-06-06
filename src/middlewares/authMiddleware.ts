@@ -1,7 +1,8 @@
 import { Request, Response, NextFunction } from "express";
 import { auth } from "../lib/auth";
-import { Session, User } from "../generated/prisma/client";
 import { fromNodeHeaders } from "better-auth/node";
+import { AppUser } from "../types";
+import { logger } from "../shared/logger";
 
 export const requireAuth = async (
   req: Request,
@@ -14,17 +15,24 @@ export const requireAuth = async (
     });
 
     if (!session) {
-      res.status(401).json({ error: "Unauthorized. Please log in." });
+      res.status(401).json({
+        success: false,
+        message: "Unauthorized. Please log in.",
+        errorSources: [],
+      });
       return;
     }
 
-    req.user = session.user as unknown as User;
-    req.session = session.session as unknown as Session;
+    req.user = session.user as AppUser;
+    req.session = session.session;
 
     next();
   } catch (error) {
-    res
-      .status(500)
-      .json({ error: "Internal Server Error during authentication." });
+    logger.error({ error }, "Authentication error in middleware");
+    res.status(500).json({
+      success: false,
+      message: "Internal Server Error during authentication.",
+      errorSources: [],
+    });
   }
 };

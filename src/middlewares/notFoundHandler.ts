@@ -1,11 +1,11 @@
 import { Request, Response, NextFunction } from "express";
-import { AppError } from "../errors/AppError";
+import { AppError } from "../errors";
 
 export const notFoundHandler = (
   req: Request,
   res: Response,
   next: NextFunction,
-) => {
+): void => {
   next(
     new AppError(
       404,

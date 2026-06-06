@@ -5,10 +5,14 @@ export const requireAdmin = (
   res: Response,
   next: NextFunction,
 ): void => {
-  // We assume requireAuth has already run before this
-  if (req.user!.role !== "ADMIN") {
-    res.status(403).json({ error: "Forbidden: Admin access required." });
+  if (req.user?.role !== "ADMIN") {
+    res.status(403).json({
+      success: false,
+      message: "Forbidden: Admin access required.",
+      errorSources: [],
+    });
     return;
   }
+
   next();
 };
