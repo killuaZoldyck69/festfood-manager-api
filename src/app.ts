@@ -1,55 +1,58 @@
 import express, { Request, Response } from "express";
 import cors from "cors";
 import helmet from "helmet";
+import pinoHttp from "pino-http";
 import { toNodeHandler } from "better-auth/node";
-import { auth } from "./lib/auth";
-import { prisma } from "./lib/prisma";
-import { scanRoutes } from "./modules/scan/scan.routes";
-import { inventoryRoutes } from "./modules/inventory/inventory.routes";
-import { adminRoutes } from "./modules/admin/admin.routes";
-import { volunteerRoutes } from "./modules/volunteer/volunteer.routes";
-import { notFoundHandler } from "./middlewares/notFoundHandler";
-import { globalErrorHandler } from "./middlewares/globalErrorHandler";
+import { auth } from "./lib";
+import { envConfig } from "./shared/config/env";
+import { logger } from "./shared/logger";
+import { scanRoutes } from "./modules/scan";
+import { inventoryRoutes } from "./modules/inventory";
+import { adminRoutes } from "./modules/admin";
+import { volunteerRoutes } from "./modules/volunteer";
+import { notFoundHandler, globalErrorHandler } from "./middlewares";
 
 const app = express();
 
 app.use(helmet());
+
+const allowedOrigins =
+  envConfig.NODE_ENV === "production"
+    ? [envConfig.APP_URL as string]
+    : ["http://localhost:8081", "http://localhost:3000"];
+
 app.use(
   cors({
-    origin: true,
+    origin: (origin, cb) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        cb(null, true);
+      } else {
+        cb(new Error("Not allowed by CORS"));
+      }
+    },
     credentials: true,
   }),
 );
-app.use(express.json());
+
+app.use(express.json({ limit: "50kb" }));
+app.use(pinoHttp({ logger }));
 
 // 💥 Add this BEFORE the Better-Auth app.all() handler
-app.post("/api/auth/sign-up/email", (req, res) => {
+app.post("/api/auth/sign-up/email", (req: Request, res: Response) => {
   res.status(403).json({
     success: false,
     message:
       "Public registration is disabled. Only Admins can create volunteer accounts.",
+    errorSources: [],
   });
 });
 
-app.all("/api/auth/{*any}", toNodeHandler(auth));
+app.all("/api/auth/*", toNodeHandler(auth));
 
-app.get("/api/health", async (_req: Request, res: Response) => {
-  try {
-    await prisma.$queryRaw`SELECT 1`;
-    res.status(200).json({
-      status: "Healthy",
-      uptime: process.uptime(),
-      database: "Connected",
-    });
-  } catch (error) {
-    res.status(500).json({ status: "Offline", database: "Disconnected" });
-  }
-});
-
-app.use("/api/scan", scanRoutes);
-app.use("/api/inventory", inventoryRoutes);
-app.use("/api/admin", adminRoutes);
-app.use("/api/volunteer", volunteerRoutes);
+app.use("/api/v1/scan", scanRoutes);
+app.use("/api/v1/inventory", inventoryRoutes);
+app.use("/api/v1/admin", adminRoutes);
+app.use("/api/v1/volunteer", volunteerRoutes);
 
 app.use(notFoundHandler);
 app.use(globalErrorHandler);
