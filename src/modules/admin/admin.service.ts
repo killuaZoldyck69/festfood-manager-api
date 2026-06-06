@@ -4,10 +4,11 @@ import { prisma } from "../../lib/prisma";
 import fs from "fs";
 import path from "path";
 import { AppError } from "../../errors/AppError";
-import { Prisma, ScanStatus } from "../../generated/prisma/client";
 import { Response } from "express";
-import { buildPdfTicketsToDisk } from "../../shared/utils/pdfGenerator.util";
+import { buildPdfTicketsToDisk } from "../../shared/utils/pdfGenerator";
 import { auth } from "../../lib/auth";
+import { ScanStatus } from "../../../prisma/generated/enums";
+import { Prisma } from "../../../prisma/generated/client";
 
 interface CsvRow {
   name?: string;
