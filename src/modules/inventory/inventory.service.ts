@@ -1,7 +1,7 @@
 import { prisma } from "../../lib/prisma";
+import { InventoryStats, SystemHealth } from "./inventory.types";
 
-export const getInventoryStats = async () => {
-  // Use Promise.all to execute all 5 database queries simultaneously for maximum speed
+export const getInventoryStats = async (): Promise<InventoryStats> => {
   const [
     logisticsConfig,
     totalServed,
@@ -9,33 +9,49 @@ export const getInventoryStats = async () => {
     invalidTickets,
     totalParticipants,
   ] = await Promise.all([
-    // 1. Get the manually set total inventory (ID 1 because it's a singleton table)
     prisma.eventLogistics.findUnique({ where: { id: 1 } }),
-
-    // 2. Count how many people successfully got food
     prisma.attendee.count({ where: { foodClaimed: true } }),
-
-    // 3. Count duplicate scan attempts
     prisma.scanLog.count({ where: { status: "DUPLICATE" } }),
-
-    // 4. Count invalid/fake ticket attempts
     prisma.scanLog.count({ where: { status: "INVALID" } }),
-
-    // 5. Count the total number of registered participants
     prisma.attendee.count(),
   ]);
 
-  // If the Admin hasn't set the inventory yet, default to 0
   const totalAvailable = logisticsConfig?.totalAvailable || 0;
 
   return {
     totalAvailable,
     totalServed,
-    totalParticipants, // The new stat
+    totalParticipants,
     duplicateScans,
     invalidTickets,
-    // Bonus: We can calculate the percentage right here on the backend!
     percentageClaimed:
       totalAvailable > 0 ? Math.round((totalServed / totalAvailable) * 100) : 0,
+  };
+};
+
+export const getSystemHealth = async (): Promise<SystemHealth> => {
+  const start = Date.now();
+  let dbStatus: "up" | "down" = "down";
+
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    dbStatus = "up";
+  } catch (error) {
+    dbStatus = "down";
+  }
+
+  const latencyMs = Date.now() - start;
+  const memoryUsage = process.memoryUsage();
+
+  return {
+    database: {
+      status: dbStatus,
+      latencyMs,
+    },
+    memory: {
+      heapUsedMB: Math.round(memoryUsage.heapUsed / 1024 / 1024),
+    },
+    uptime: Math.round(process.uptime()),
+    version: process.env.npm_package_version || "1.0.0",
   };
 };

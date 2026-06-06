@@ -1,17 +1,18 @@
 import { Request, Response } from "express";
-import { getInventoryStats } from "./inventory.service";
+import { getInventoryStats, getSystemHealth } from "./inventory.service";
+import { catchAsync } from "../../shared/catchAsync";
 
-export const handleGetInventory = async (
-  req: Request,
-  res: Response,
-): Promise<any> => {
-  try {
+export const handleGetInventory = catchAsync(
+  async (req: Request, res: Response): Promise<void> => {
     const stats = await getInventoryStats();
-    return res.status(200).json(stats);
-  } catch (error) {
-    console.error("Inventory Controller Error:", error);
-    return res
-      .status(500)
-      .json({ error: "Failed to fetch inventory statistics." });
-  }
-};
+    res.status(200).json(stats);
+  },
+);
+
+export const handleGetHealth = catchAsync(
+  async (req: Request, res: Response): Promise<void> => {
+    const health = await getSystemHealth();
+    const statusCode = health.database.status === "up" ? 200 : 503;
+    res.status(statusCode).json(health);
+  },
+);
