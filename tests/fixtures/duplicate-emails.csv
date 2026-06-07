@@ -1,0 +1,4 @@
+name,email,studentId,university,role,category,semester,section
+User One,duplicate@example.com,S001,Uni A,Student,Hackathon,Fall 2026,A
+User Two,duplicate@example.com,S002,Uni B,Student,Datathon,Spring 2026,B
+User Three,user3@example.com,S003,Uni A,Faculty,General,Fall 2026,C

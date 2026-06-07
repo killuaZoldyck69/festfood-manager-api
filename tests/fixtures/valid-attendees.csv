@@ -1,0 +1,6 @@
+name,email,studentId,university,role,category,semester,section
+John Doe,john@example.com,S001,Test Uni,Student,Hackathon,Fall 2026,A
+Jane Smith,jane@example.com,S002,Test Uni,Student,Datathon,Fall 2026,B
+Alice Jones,alice@example.com,S003,Test Uni,Faculty,General,Fall 2026,C
+Bob Brown,bob@example.com,S004,Other Uni,Student,Hackathon,Spring 2026,A
+Charlie Day,charlie@example.com,S005,Other Uni,External,General,Spring 2026,B

@@ -9,7 +9,8 @@
     "strict": true,
     "skipLibCheck": true,
     "ignoreDeprecations": "6.0",
-    "moduleResolution": "bundler"
+    "moduleResolution": "bundler",
+    "types": ["vitest/globals", "node"]
   },
   "include": ["src/**/*", "prisma/generated/client/**/*"],
   "exclude": ["node_modules", "dist", "**/*.config.ts", "scripts/"]
