@@ -1,6 +1,10 @@
 import { Prisma } from "../../../../prisma/generated/client";
 import { prisma } from "../../../lib/prisma";
-import { LogFilterOptions, PaginatedLogResponse } from "../types/log.types";
+import {
+  FormattedLog,
+  LogFilterOptions,
+  PaginatedLogResponse,
+} from "../types/log.types";
 
 export const getSystemLogs = async (
   page: number,
@@ -10,20 +14,32 @@ export const getSystemLogs = async (
   const skip = (page - 1) * limit;
   const whereClause: Prisma.ScanLogWhereInput = {};
 
-  if (filters.status) {
+  if (filters.status && filters.status !== ("ALL" as any)) {
     whereClause.status = filters.status;
+  }
+
+  if (filters.volunteerEmail && filters.volunteerEmail !== "ALL") {
+    whereClause.volunteer = { email: filters.volunteerEmail };
+  }
+
+  const attendeeFilter: Prisma.AttendeeWhereInput = {};
+
+  if (filters.category && filters.category !== "ALL") {
+    attendeeFilter.category = filters.category;
   }
 
   if (filters.search && filters.search.trim() !== "") {
     const searchTerm = filters.search.trim();
-    whereClause.attendee = {
-      OR: [
-        { name: { contains: searchTerm, mode: "insensitive" } },
-        { email: { contains: searchTerm, mode: "insensitive" } },
-        { studentId: { contains: searchTerm, mode: "insensitive" } },
-        { university: { contains: searchTerm, mode: "insensitive" } },
-      ],
-    };
+    attendeeFilter.OR = [
+      { name: { contains: searchTerm, mode: "insensitive" } },
+      { email: { contains: searchTerm, mode: "insensitive" } },
+      { studentId: { contains: searchTerm, mode: "insensitive" } },
+      { university: { contains: searchTerm, mode: "insensitive" } },
+    ];
+  }
+
+  if (Object.keys(attendeeFilter).length > 0) {
+    whereClause.attendee = attendeeFilter;
   }
 
   const [total, rawLogs] = await Promise.all([
@@ -34,19 +50,34 @@ export const getSystemLogs = async (
       take: limit,
       orderBy: { scannedAt: "desc" },
       include: {
-        volunteer: { select: { name: true } },
-        attendee: { select: { name: true } },
+        volunteer: { select: { name: true, email: true } },
+        attendee: {
+          select: {
+            name: true,
+            studentId: true,
+            category: true,
+            email: true,
+            university: true,
+            section: true,
+          },
+        },
       },
     }),
   ]);
 
-  const formattedLogs = rawLogs.map((log) => ({
+  const formattedLogs: FormattedLog[] = rawLogs.map((log) => ({
     id: log.id,
     status: log.status,
     scannedToken: log.scannedToken || "",
     scannedAt: log.scannedAt,
     volunteerName: log.volunteer?.name || null,
+    volunteerEmail: log.volunteer?.email || null,
     attendeeName: log.attendee?.name || null,
+    attendeeEmail: log.attendee?.email || null,
+    studentId: log.attendee?.studentId || null,
+    category: log.attendee?.category || null,
+    university: log.attendee?.university || null,
+    section: log.attendee?.section || null,
   }));
 
   return {

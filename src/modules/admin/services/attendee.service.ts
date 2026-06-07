@@ -35,7 +35,7 @@ const csvRowSchema = z.object({
 
 export const uploadAttendeesFromCsv = async (
   fileBuffer: Buffer,
-): Promise<{ insertedCount: number; fileName: string }> => {
+): Promise<{ insertedCount: number; insertedIds: string[] }> => {
   const records = parse(fileBuffer, {
     columns: true,
     skip_empty_lines: true,
@@ -100,22 +100,31 @@ export const uploadAttendeesFromCsv = async (
     skipDuplicates: true,
   });
 
-  const ticketDataForPdf: AttendeeTicketData[] = newAttendeesData.map((a) => ({
-    name: a.name,
-    email: a.email,
-    studentId: a.studentId,
-    university: a.university,
-    category: a.category,
-    semester: a.semester,
-    section: a.section,
-    qrToken: a.qrToken,
-  }));
+  const insertedEmails = newAttendeesData.map((a) => a.email);
+  const insertedRecords = await prisma.attendee.findMany({
+    where: { email: { in: insertedEmails } },
+    select: { id: true },
+  });
 
-  const tempFilePath = await buildPdfTicketsToDisk(ticketDataForPdf);
+  const insertedIds = insertedRecords.map((r) => r.id);
 
-  const fileName = path.basename(tempFilePath);
+  return { insertedCount, insertedIds };
+};
 
-  return { insertedCount, fileName };
+export const generatePdfTicketsForIds = async (
+  attendeeIds: string[],
+): Promise<string> => {
+  const attendees = await prisma.attendee.findMany({
+    where: { id: { in: attendeeIds } },
+  });
+  return await buildPdfTicketsToDisk(attendees);
+};
+
+export const generateAllPdfTicketsBackup = async (): Promise<string> => {
+  const attendees = await prisma.attendee.findMany({
+    orderBy: { createdAt: "asc" },
+  });
+  return await buildPdfTicketsToDisk(attendees);
 };
 
 export const getAttendeesList = async (
@@ -134,6 +143,10 @@ export const getAttendeesList = async (
   }
   if (filters.role && filters.role !== "ALL") {
     whereClause.role = filters.role;
+  }
+
+  if (filters.university && filters.university !== "ALL") {
+    whereClause.university = filters.university;
   }
 
   if (filters.search && filters.search.trim() !== "") {
@@ -155,7 +168,7 @@ export const getAttendeesList = async (
       take: limit,
       include: {
         scanLogs: {
-          where: { status: "SUCCESS" },
+          where: { status: { in: ["SUCCESS", "MANUAL_OVERRIDE"] } },
           include: { volunteer: { select: { name: true, role: true } } },
         },
       },

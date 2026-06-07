@@ -21,8 +21,11 @@ export const streamFileToResponse = (
     throw new AppError(404, "File not found.");
   }
 
+  const stat = fs.statSync(resolvedPath);
+
   res.setHeader("Content-Type", "application/pdf");
   res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+  res.setHeader("Content-Length", stat.size.toString());
 
   const readStream = fs.createReadStream(resolvedPath);
 

@@ -12,6 +12,8 @@ import {
   wipeAllAttendees,
   getAttendeeFilterOptions,
   prepareAllTicketsBackup,
+  generatePdfTicketsForIds,
+  generateAllPdfTicketsBackup,
 } from "./services/attendee.service";
 import {
   updateLogisticsInventory,
@@ -40,6 +42,37 @@ export const handleCsvUpload = catchAsync(
   },
 );
 
+export const handleGenerateTickets = catchAsync(
+  async (req: Request, res: Response): Promise<void> => {
+    const { type, attendeeIds } = req.body;
+    let tempFilePath = "";
+
+    if (type === "RECENT") {
+      if (
+        !attendeeIds ||
+        !Array.isArray(attendeeIds) ||
+        attendeeIds.length === 0
+      ) {
+        throw new AppError(
+          400,
+          "No valid attendee IDs provided for recent generation.",
+        );
+      }
+      tempFilePath = await generatePdfTicketsForIds(attendeeIds);
+    } else if (type === "ALL") {
+      tempFilePath = await generateAllPdfTicketsBackup();
+    } else {
+      throw new AppError(
+        400,
+        "Invalid generation type. Must be RECENT or ALL.",
+      );
+    }
+
+    const fileName = path.basename(tempFilePath);
+    res.status(200).json({ success: true, data: { fileName } });
+  },
+);
+
 export const downloadTempPdf = catchAsync(
   async (req: Request, res: Response): Promise<void> => {
     const filename = req.params.filename as string;
@@ -51,15 +84,6 @@ export const downloadTempPdf = catchAsync(
 
     const filePath = path.join(os.tmpdir(), filename);
     streamFileToResponse(res, filePath, filename);
-  },
-);
-
-export const downloadAllTickets = catchAsync(
-  async (req: Request, res: Response): Promise<void> => {
-    const tempFilePath = await prepareAllTicketsBackup();
-    const filename = `All_Fest_Tickets_Backup_${Date.now()}.pdf`;
-
-    streamFileToResponse(res, tempFilePath, filename);
   },
 );
 

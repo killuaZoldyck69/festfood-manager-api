@@ -24,6 +24,7 @@ export interface AttendeeFilterOptions {
   role?: string;
   category?: string;
   status?: "CLAIMED" | "UNCLAIMED";
+  university?: string;
 }
 
 export type PaginatedAttendeeResponse = PaginatedResponse<AttendeeListItem>;

@@ -6,10 +6,10 @@ import { AppError } from "../../errors/AppError";
 import {
   createVolunteer,
   deleteVolunteerController,
-  downloadAllTickets,
   downloadTempPdf,
   getVolunteers,
   handleCsvUpload,
+  handleGenerateTickets,
   handleGetAttendeeFilters,
   handleGetAttendees,
   handleGetLogFilters,
@@ -49,11 +49,11 @@ const volunteerCreationLimiter = rateLimit({
 router.use(requireAuth, requireAdmin);
 
 router.post("/upload", upload.single("file"), handleCsvUpload);
+router.post("/tickets/generate", handleGenerateTickets);
 router.put("/inventory", handleUpdateInventory);
 router.get("/attendees", handleGetAttendees);
 router.post("/override", handleManualOverride);
 router.get("/logs", handleGetLogs);
-router.get("/tickets/download-all", downloadAllTickets);
 router.get("/tickets/download-temp/:filename", downloadTempPdf);
 
 router.delete("/attendees/wipe", resetDatabase);

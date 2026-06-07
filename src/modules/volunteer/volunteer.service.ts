@@ -35,7 +35,7 @@ export const getVolunteerLogs = async (
   const formattedLogs = rawLogs.map((log) => ({
     id: log.id,
     status: log.status,
-    scannedToken: log.scannedToken || "", // Fallback to satisfy strict string type
+    scannedToken: log.scannedToken || "",
     scannedAt: log.scannedAt,
     attendeeName: log.attendee?.name || null,
     attendeeUniversity: log.attendee?.university || null,
