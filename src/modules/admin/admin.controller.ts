@@ -35,7 +35,7 @@ export const handleCsvUpload = catchAsync(
   async (req: Request, res: Response): Promise<void> => {
     if (!req.file) throw new AppError(400, "No CSV file uploaded.");
 
-    const result = await req.file.buffer;
+    const result = await uploadAttendeesFromCsv(req.file.buffer);
     res.status(200).json({ success: true, data: result });
   },
 );

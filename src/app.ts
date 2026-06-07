@@ -37,7 +37,6 @@ app.use(
 app.use(express.json({ limit: "50kb" }));
 app.use(pinoHttp({ logger }));
 
-// 💥 Add this BEFORE the Better-Auth app.all() handler
 app.post("/api/auth/sign-up/email", (req: Request, res: Response) => {
   res.status(403).json({
     success: false,

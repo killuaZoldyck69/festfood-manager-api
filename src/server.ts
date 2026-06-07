@@ -1,3 +1,4 @@
+import { Server } from "node:http";
 import app from "./app";
 import { connectDatabase, disconnectDatabase } from "./lib";
 import { envConfig } from "./shared/config/env";
@@ -5,7 +6,7 @@ import { logger } from "./shared/logger";
 
 const PORT = envConfig.PORT;
 
-let server: any;
+let server: Server;
 
 const startServer = async () => {
   try {

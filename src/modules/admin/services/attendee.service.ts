@@ -113,7 +113,6 @@ export const uploadAttendeesFromCsv = async (
 
   const tempFilePath = await buildPdfTicketsToDisk(ticketDataForPdf);
 
-  // 💥 Fix: Replaced inline require() with standard ESM path.basename
   const fileName = path.basename(tempFilePath);
 
   return { insertedCount, fileName };
