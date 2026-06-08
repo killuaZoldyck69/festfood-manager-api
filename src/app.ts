@@ -19,7 +19,7 @@ app.use(helmet());
 const allowedOrigins =
   envConfig.NODE_ENV === "production"
     ? [envConfig.APP_URL as string]
-    : ["http://localhost:8081", "http://192.168.0.101:8081"];
+    : ["http://localhost:8081", "http://192.168.0.102:8081"];
 
 app.use(
   cors({

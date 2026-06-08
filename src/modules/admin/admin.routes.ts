@@ -18,6 +18,7 @@ import {
   handleUpdateInventory,
   resetDatabase,
   resetLogistics,
+  wipeVolunteersController,
 } from "./admin.controller";
 
 const router = Router();
@@ -61,6 +62,7 @@ router.post("/logistics/reset", resetLogistics);
 
 router.get("/volunteers", getVolunteers);
 router.post("/volunteers", volunteerCreationLimiter, createVolunteer);
+router.delete("/volunteers/wipe", wipeVolunteersController);
 router.delete("/volunteers/:id", deleteVolunteerController);
 
 router.get("/attendees/filters", handleGetAttendeeFilters);

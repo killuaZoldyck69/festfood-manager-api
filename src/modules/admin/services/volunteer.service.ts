@@ -48,14 +48,34 @@ export const getVolunteersList = async (): Promise<VolunteerListItem[]> => {
     orderBy: { createdAt: "desc" },
   });
 
-  return volunteers.map((volunteer) => ({
-    id: volunteer.id,
-    name: volunteer.name,
-    email: volunteer.email,
-    role: volunteer.role || "VOLUNTEER",
-    createdAt: volunteer.createdAt,
-    totalScans: volunteer._count.scanLogs,
-  }));
+  if (volunteers.length === 0) return [];
+
+  const volunteerIds = volunteers.map((v) => v.id);
+
+  const scanStats = await prisma.scanLog.groupBy({
+    by: ["volunteerId", "status"],
+    where: { volunteerId: { in: volunteerIds } },
+    _count: { _all: true },
+  });
+
+  return volunteers.map((volunteer) => {
+    const vStats = scanStats.filter((s) => s.volunteerId === volunteer.id);
+
+    const getCount = (statusName: string) =>
+      vStats.find((s) => s.status === statusName)?._count._all || 0;
+
+    return {
+      id: volunteer.id,
+      name: volunteer.name,
+      email: volunteer.email,
+      role: volunteer.role || "VOLUNTEER",
+      createdAt: volunteer.createdAt,
+      totalScans: volunteer._count.scanLogs,
+      successScans: getCount("SUCCESS"),
+      duplicateScans: getCount("DUPLICATE"),
+      invalidScans: getCount("INVALID"),
+    };
+  });
 };
 
 export const removeVolunteer = async (volunteerId: string): Promise<void> => {
@@ -70,5 +90,11 @@ export const removeVolunteer = async (volunteerId: string): Promise<void> => {
   await prisma.user.update({
     where: { id: volunteerId },
     data: { deletedAt: new Date() },
+  });
+};
+
+export const wipeAllVolunteers = async (): Promise<void> => {
+  await prisma.user.deleteMany({
+    where: { role: "VOLUNTEER" },
   });
 };

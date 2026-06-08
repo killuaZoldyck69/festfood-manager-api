@@ -23,6 +23,7 @@ import {
   registerVolunteerAccount,
   getVolunteersList,
   removeVolunteer,
+  wipeAllVolunteers,
 } from "./services/volunteer.service";
 import { getSystemLogs, getLogFilterOptions } from "./services/logs.service";
 import {
@@ -142,6 +143,8 @@ export const handleGetLogs = catchAsync(
     const result = await getSystemLogs(filters.page, filters.limit, {
       search: filters.search,
       status,
+      category: filters.category,
+      volunteerEmail: filters.volunteerEmail,
     });
 
     res.status(200).json(result);
@@ -171,9 +174,22 @@ export const getVolunteers = catchAsync(
 
 export const deleteVolunteerController = catchAsync(
   async (req: Request, res: Response): Promise<void> => {
-    const id = z.string().uuid().parse(req.params.id);
+    const id = z.string().min(1, "Invalid ID").parse(req.params.id);
+
     await removeVolunteer(id);
+
     res.status(200).json({ success: true, message: "Volunteer removed." });
+  },
+);
+
+export const wipeVolunteersController = catchAsync(
+  async (req: Request, res: Response): Promise<void> => {
+    await wipeAllVolunteers();
+    res.status(200).json({
+      success: true,
+      message:
+        "All volunteers and their scan logs have been permanently deleted.",
+    });
   },
 );
 

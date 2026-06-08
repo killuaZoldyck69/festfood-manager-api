@@ -94,7 +94,7 @@ export const getSystemLogs = async (
 
 export const getLogFilterOptions = async (): Promise<{
   categories: { name: string; count: number }[];
-  volunteers: { name: string; count: number }[];
+  volunteers: { name: string; email: string; count: number }[];
 }> => {
   const volunteerLogs = await prisma.scanLog.groupBy({
     by: ["volunteerId"],
@@ -118,6 +118,7 @@ export const getLogFilterOptions = async (): Promise<{
       };
       return {
         name: userData.name,
+        email: userData.email,
         count: v._count.id,
       };
     })

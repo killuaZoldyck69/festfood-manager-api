@@ -20,12 +20,13 @@ export const overrideBodySchema = z.object({
     .uuid("Invalid Attendee ID format"),
 });
 
-export const getLogsQuerySchema = paginationSchema.extend({
-  status: z
-    .enum(["ALL", "SUCCESS", "DUPLICATE", "INVALID", "MANUAL_OVERRIDE"])
-    .optional()
-    .default("ALL"),
+export const getLogsQuerySchema = z.object({
+  page: z.coerce.number().min(1).default(1),
+  limit: z.coerce.number().min(1).default(20),
   search: z.string().optional(),
+  status: z.string().optional(),
+  category: z.string().optional(),
+  volunteerEmail: z.string().optional(),
 });
 
 export const getAttendeesQuerySchema = z.object({

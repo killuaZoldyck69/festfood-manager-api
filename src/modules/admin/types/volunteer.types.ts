@@ -5,6 +5,9 @@ export interface VolunteerListItem {
   role: string;
   createdAt: Date;
   totalScans: number;
+  successScans: number;
+  duplicateScans: number;
+  invalidScans: number;
 }
 
 export interface CreateVolunteerDTO {
