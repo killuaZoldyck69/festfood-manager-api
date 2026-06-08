@@ -16,25 +16,17 @@ const app = express();
 
 app.use(helmet());
 
-const allowedOrigins =
-  envConfig.NODE_ENV === "production"
-    ? [envConfig.APP_URL as string]
-    : ["http://localhost:8081", "http://192.168.0.102:8081"];
-
 app.use(
   cors({
     origin: (origin, cb) => {
-      if (!origin || origin === "null" || allowedOrigins.includes(origin)) {
-        cb(null, true);
-      } else {
-        cb(new Error("Not allowed by CORS"));
-      }
+      cb(null, true);
     },
     credentials: true,
   }),
 );
 
-app.use(express.json({ limit: "50kb" }));
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ limit: "10mb", extended: true }));
 app.use(pinoHttp({ logger }));
 
 app.post("/api/auth/sign-up/email", (req: Request, res: Response) => {
