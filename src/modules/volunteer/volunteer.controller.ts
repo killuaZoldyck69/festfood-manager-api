@@ -6,13 +6,21 @@ import { AppError } from "../../errors/AppError";
 
 export const handleGetVolunteerLogs = catchAsync(
   async (req: Request, res: Response): Promise<void> => {
-    const { page, limit, status } = getVolunteerLogsSchema.parse(req.query);
+    const filters = getVolunteerLogsSchema.parse(req.query);
 
     if (!req.user) {
       throw new AppError(401, "Unauthorized. Missing user context.");
     }
 
-    const logsData = await getVolunteerLogs(req.user.id, page, limit, status);
+    const logsData = await getVolunteerLogs(
+      req.user.id,
+      filters.page,
+      filters.limit,
+      {
+        status: filters.status,
+        search: filters.search,
+      },
+    );
 
     res.status(200).json(logsData);
   },

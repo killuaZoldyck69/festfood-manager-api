@@ -39,7 +39,16 @@ export const processScan = async (
     return {
       status: "DUPLICATE",
       message: "This ticket has already been used!",
-      attendee: { name: attendee.name, claimedAt: attendee.claimedAt },
+      attendee: {
+        name: attendee.name,
+        email: attendee.email,
+        studentId: attendee.studentId,
+        semester: attendee.semester,
+        section: attendee.section,
+        university: attendee.university,
+        category: attendee.category,
+        claimedAt: attendee.claimedAt,
+      },
     };
   }
 

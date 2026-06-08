@@ -5,7 +5,16 @@ export type ScanResult =
   | {
       status: "DUPLICATE";
       message: string;
-      attendee: { name: string; claimedAt: Date | null };
+      attendee: {
+        name: string;
+        email: string;
+        studentId: string;
+        semester: string | null;
+        section: string | null;
+        university: string | null;
+        category: string | null;
+        claimedAt: Date | null;
+      };
     }
   | { status: "SUCCESS"; message: string; attendee: Attendee }
   | { status: "DEPLETED"; message: string };
