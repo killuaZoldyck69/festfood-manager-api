@@ -27,18 +27,22 @@ const csvRowSchema = z.object({
   email: emailValidator,
   studentId: z.string().min(1),
   university: z.string().min(1),
-  role: z.string().min(1),
-  category: z.string().min(1),
+  department: z.string().min(1),
+  phoneNumber: z.string().min(1),
   semester: z.string().min(1),
   section: z.string().min(1),
+  role: z.string().min(1),
+  category: z.string().min(1),
 });
 
 export const uploadAttendeesFromCsv = async (
   fileBuffer: Buffer,
 ): Promise<{ insertedCount: number; insertedIds: string[] }> => {
   const records = parse(fileBuffer, {
-    columns: true,
+    columns: (headerList) => headerList.map((header: string) => header.trim()),
     skip_empty_lines: true,
+    bom: true,
+    trim: true,
   }) as Record<string, unknown>[];
 
   const cleanedRecords: CsvRow[] = [];
@@ -54,10 +58,12 @@ export const uploadAttendeesFromCsv = async (
         .toLowerCase(),
       studentId: String(row.studentId || "").trim(),
       university: String(row.university || "").trim(),
-      role: String(row.role || "").trim(),
-      category: String(row.category || "").trim(),
+      department: String(row.department || "").trim(),
+      phoneNumber: String(row.phoneNumber || "").trim(),
       semester: String(row.semester || "").trim(),
       section: String(row.section || "").trim(),
+      role: String(row.role || "").trim(),
+      category: String(row.category || "").trim(),
     };
 
     const validation = csvRowSchema.safeParse(cleanedRow);
@@ -163,7 +169,7 @@ export const getAttendeesList = async (
     prisma.attendee.count({ where: whereClause }),
     prisma.attendee.findMany({
       where: whereClause,
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ createdAt: "desc" }, { id: "asc" }],
       skip,
       take: limit,
       include: {
@@ -183,6 +189,8 @@ export const getAttendeesList = async (
       email: attendee.email,
       studentId: attendee.studentId,
       university: attendee.university,
+      department: attendee.department,
+      phoneNumber: attendee.phoneNumber,
       role: attendee.role,
       category: attendee.category,
       semester: attendee.semester || "",
@@ -222,34 +230,40 @@ export const processManualOverride = async (
     throw new AppError(409, "Attendee has already claimed their food.");
   }
 
-  await assertInventoryAvailable();
+  return await prisma.$transaction(async (tx) => {
+    const logistics = await tx.eventLogistics.findUnique({ where: { id: 1 } });
 
-  const [updatedAttendee] = await prisma.$transaction([
-    prisma.attendee.update({
+    if (!logistics || logistics.totalAvailable <= 0) {
+      throw new AppError(400, "Inventory depleted. No food available.");
+    }
+
+    await tx.eventLogistics.update({
+      where: { id: 1 },
+      data: { totalAvailable: { decrement: 1 } },
+    });
+
+    const updatedAttendee = await tx.attendee.update({
       where: { id: attendeeId },
       data: { foodClaimed: true, claimedAt: new Date() },
-    }),
-    prisma.scanLog.create({
+    });
+
+    await tx.scanLog.create({
       data: {
         status: "MANUAL_OVERRIDE",
         volunteerId: adminId,
         attendeeId: attendee.id,
         scannedToken: attendee.qrToken,
       },
-    }),
-    prisma.eventLogistics.updateMany({
-      where: { id: 1, totalAvailable: { gt: 0 } },
-      data: { totalAvailable: { decrement: 1 } },
-    }),
-  ]);
+    });
 
-  return {
-    ...updatedAttendee,
-    semester: updatedAttendee.semester || "",
-    section: updatedAttendee.section || "",
-    scannerName: null,
-    scannerRole: null,
-  };
+    return {
+      ...updatedAttendee,
+      semester: updatedAttendee.semester || "",
+      section: updatedAttendee.section || "",
+      scannerName: null,
+      scannerRole: null,
+    };
+  });
 };
 
 export const wipeAllAttendees = async (): Promise<{

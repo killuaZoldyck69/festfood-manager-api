@@ -88,15 +88,17 @@ enum ScanStatus {
 }
 
 model Attendee {
-  id         String @id @default(uuid())
-  name       String
-  email      String @unique
-  studentId  String
-  university String
-  role       String
-  category   String
-  semester   String
-  section    String
+  id          String @id @default(uuid())
+  name        String
+  email       String @unique
+  studentId   String
+  university  String
+  department  String
+  phoneNumber String
+  semester    String
+  section     String
+  role        String
+  category    String
 
   qrToken     String    @unique
   foodClaimed Boolean   @default(false)

@@ -6,6 +6,8 @@ export interface AttendeeListItem {
   email: string;
   studentId: string;
   university: string;
+  department: string;
+  phoneNumber: string;
   role: string;
   category: string;
   semester: string;

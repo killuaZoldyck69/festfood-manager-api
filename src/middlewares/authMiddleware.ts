@@ -3,6 +3,7 @@ import { auth } from "../lib/auth";
 import { fromNodeHeaders } from "better-auth/node";
 import { AppUser } from "../types";
 import { logger } from "../shared/logger";
+import { prisma } from "../lib/prisma";
 
 export const requireAuth = async (
   req: Request,
@@ -18,6 +19,20 @@ export const requireAuth = async (
       res.status(401).json({
         success: false,
         message: "Unauthorized. Please log in.",
+        errorSources: [],
+      });
+      return;
+    }
+
+    const dbUser = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { deletedAt: true },
+    });
+
+    if (!dbUser || dbUser.deletedAt !== null) {
+      res.status(403).json({
+        success: false,
+        message: "Forbidden. Account has been disabled or deleted.",
         errorSources: [],
       });
       return;

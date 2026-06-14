@@ -58,6 +58,9 @@ export const getSystemLogs = async (
             category: true,
             email: true,
             university: true,
+            department: true,
+            phoneNumber: true,
+            semester: true,
             section: true,
           },
         },
@@ -77,6 +80,9 @@ export const getSystemLogs = async (
     studentId: log.attendee?.studentId || null,
     category: log.attendee?.category || null,
     university: log.attendee?.university || null,
+    department: log.attendee?.department || null,
+    phoneNumber: log.attendee?.phoneNumber || null,
+    semester: log.attendee?.semester || null,
     section: log.attendee?.section || null,
   }));
 

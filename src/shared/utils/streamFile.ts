@@ -28,18 +28,25 @@ export const streamFileToResponse = (
   res.setHeader("Content-Length", stat.size.toString());
 
   const readStream = fs.createReadStream(resolvedPath);
+  let isCleanedUp = false;
 
-  readStream.pipe(res);
+  const cleanup = () => {
+    if (isCleanedUp) return;
+    isCleanedUp = true;
 
-  readStream.on("end", () => {
     fs.unlink(resolvedPath, (err) => {
-      if (err) {
+      if (err && err.code !== "ENOENT") {
         logger.error({ err }, "Failed to delete temporary file.");
       }
     });
-  });
+  };
+
+  readStream.pipe(res);
+
+  readStream.on("end", cleanup);
 
   readStream.on("error", (err) => {
+    cleanup();
     logger.error({ err }, "Error streaming file.");
     if (!res.headersSent) {
       res.status(500).json({
@@ -49,4 +56,6 @@ export const streamFileToResponse = (
       });
     }
   });
+
+  res.on("close", cleanup);
 };

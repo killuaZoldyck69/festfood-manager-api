@@ -1,5 +1,4 @@
 import { prisma } from "../../lib/prisma";
-import { assertInventoryAvailable } from "../../shared/utils/inventory";
 import { AppError } from "../../errors/AppError";
 import { ScanResult } from "./scan.types";
 import { logger } from "../../shared/logger";
@@ -23,74 +22,99 @@ export const processScan = async (
     };
   }
 
-  if (attendee.foodClaimed) {
-    await prisma.scanLog.create({
-      data: {
-        status: "DUPLICATE",
-        volunteerId,
-        attendeeId: attendee.id,
-        scannedToken: qrToken,
-      },
+  try {
+    const txResult = await prisma.$transaction(async (tx) => {
+      const currentAttendee = await tx.attendee.findUnique({
+        where: { id: attendee.id },
+      });
+
+      if (!currentAttendee) {
+        throw new AppError(404, "Attendee record is missing.");
+      }
+
+      if (currentAttendee.foodClaimed) {
+        await tx.scanLog.create({
+          data: {
+            status: "DUPLICATE",
+            volunteerId,
+            attendeeId: currentAttendee.id,
+            scannedToken: qrToken,
+          },
+        });
+        return { type: "DUPLICATE", attendee: currentAttendee };
+      }
+
+      const logistics = await tx.eventLogistics.findUnique({
+        where: { id: 1 },
+      });
+
+      if (!logistics || logistics.totalAvailable <= 0) {
+        throw new AppError(400, "Inventory depleted. No food available.");
+      }
+
+      await tx.eventLogistics.update({
+        where: { id: 1 },
+        data: { totalAvailable: { decrement: 1 } },
+      });
+
+      await tx.scanLog.create({
+        data: {
+          status: "SUCCESS",
+          volunteerId,
+          attendeeId: currentAttendee.id,
+          scannedToken: qrToken,
+        },
+      });
+
+      const updatedAttendee = await tx.attendee.update({
+        where: { id: currentAttendee.id },
+        data: { foodClaimed: true, claimedAt: new Date() },
+      });
+
+      return { type: "SUCCESS", attendee: updatedAttendee };
     });
+
+    if (txResult.type === "DUPLICATE") {
+      logger.info(
+        { attendeeId: attendee.id, volunteerId },
+        "Scan failed: Duplicate ticket",
+      );
+      return {
+        status: "DUPLICATE",
+        message: "This ticket has already been used!",
+        attendee: {
+          name: txResult.attendee.name,
+          email: txResult.attendee.email,
+          studentId: txResult.attendee.studentId,
+          semester: txResult.attendee.semester,
+          section: txResult.attendee.section,
+          university: txResult.attendee.university,
+          category: txResult.attendee.category,
+          claimedAt: txResult.attendee.claimedAt,
+        },
+      };
+    }
+
     logger.info(
       { attendeeId: attendee.id, volunteerId },
-      "Scan failed: Duplicate ticket",
+      "Scan successful: Food claimed",
     );
+
     return {
-      status: "DUPLICATE",
-      message: "This ticket has already been used!",
-      attendee: {
-        name: attendee.name,
-        email: attendee.email,
-        studentId: attendee.studentId,
-        semester: attendee.semester,
-        section: attendee.section,
-        university: attendee.university,
-        category: attendee.category,
-        claimedAt: attendee.claimedAt,
-      },
+      status: "SUCCESS",
+      message: "Ticket validated! Serve the food.",
+      attendee: txResult.attendee,
     };
-  }
-
-  try {
-    await assertInventoryAvailable();
   } catch (error) {
-    const message =
-      error instanceof AppError ? error.message : "Inventory depleted.";
-    logger.warn(
-      { attendeeId: attendee.id, volunteerId },
-      "Scan failed: Depleted inventory",
-    );
-    return { status: "DEPLETED", message };
+    if (error instanceof AppError) {
+      logger.warn(
+        { attendeeId: attendee.id, volunteerId },
+        `Scan failed: ${error.message}`,
+      );
+      return { status: "DEPLETED", message: error.message };
+    }
+
+    logger.error({ error, attendeeId: attendee.id }, "Transaction failed");
+    throw error;
   }
-
-  const [updatedAttendee] = await prisma.$transaction([
-    prisma.attendee.update({
-      where: { id: attendee.id },
-      data: { foodClaimed: true, claimedAt: new Date() },
-    }),
-    prisma.scanLog.create({
-      data: {
-        status: "SUCCESS",
-        volunteerId,
-        attendeeId: attendee.id,
-        scannedToken: qrToken,
-      },
-    }),
-    prisma.eventLogistics.updateMany({
-      where: { id: 1, totalAvailable: { gt: 0 } },
-      data: { totalAvailable: { decrement: 1 } },
-    }),
-  ]);
-
-  logger.info(
-    { attendeeId: attendee.id, volunteerId },
-    "Scan successful: Food claimed",
-  );
-
-  return {
-    status: "SUCCESS",
-    message: "Ticket validated! Serve the food.",
-    attendee: updatedAttendee,
-  };
 };

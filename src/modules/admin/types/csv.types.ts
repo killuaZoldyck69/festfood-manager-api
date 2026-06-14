@@ -3,10 +3,12 @@ export interface CsvRow {
   email: string;
   studentId: string;
   university: string;
-  role: string;
-  category: string;
+  department: string;
+  phoneNumber: string;
   semester: string;
   section: string;
+  role: string;
+  category: string;
 }
 
 export interface ParsedCsvRow extends CsvRow {
