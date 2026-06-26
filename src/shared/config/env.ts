@@ -24,7 +24,15 @@ const envSchema = z.object({
     .enum(["development", "production", "test"])
     .default("development"),
   APP_URL: urlValidator.optional(),
+  BACKEND_URL: urlValidator.optional(),
   TRUSTED_ORIGINS: z.string().optional(),
+
+  SMTP_USER: z.string().min(1, "SMTP_USER is required"),
+  SMTP_PASS: z.string().min(1, "SMTP_PASS is required"),
+  FROM_EMAIL: z.string().email("FROM_EMAIL must be a valid email"),
+
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.coerce.number().optional(),
 });
 
 export const envConfig = envSchema.parse(process.env);

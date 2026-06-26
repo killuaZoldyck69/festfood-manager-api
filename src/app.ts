@@ -4,13 +4,13 @@ import helmet from "helmet";
 import pinoHttp from "pino-http";
 import { toNodeHandler } from "better-auth/node";
 import { auth } from "./lib";
-import { envConfig } from "./shared/config/env";
 import { logger } from "./shared/logger";
 import { scanRoutes } from "./modules/scan";
 import { inventoryRoutes } from "./modules/inventory";
 import { adminRoutes } from "./modules/admin";
 import { volunteerRoutes } from "./modules/volunteer";
 import { notFoundHandler, globalErrorHandler } from "./middlewares";
+import { ticketRoutes } from "./modules/tickets/tickets.routes";
 
 const app = express();
 
@@ -44,6 +44,7 @@ app.use("/api/v1/scan", scanRoutes);
 app.use("/api/v1/inventory", inventoryRoutes);
 app.use("/api/v1/admin", adminRoutes);
 app.use("/api/v1/volunteer", volunteerRoutes);
+app.use("/api/tickets", ticketRoutes);
 
 app.use(notFoundHandler);
 app.use(globalErrorHandler);

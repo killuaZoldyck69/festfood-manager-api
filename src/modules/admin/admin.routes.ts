@@ -12,9 +12,12 @@ import {
   handleGenerateTickets,
   handleGetAttendeeFilters,
   handleGetAttendees,
+  handleGetEmailProgress,
   handleGetLogFilters,
   handleGetLogs,
   handleManualOverride,
+  handleSendSingleEmail,
+  handleStartEmailBatch,
   handleUpdateInventory,
   resetDatabase,
   resetLogistics,
@@ -66,6 +69,9 @@ router.delete("/volunteers/wipe", wipeVolunteersController);
 router.delete("/volunteers/:id", deleteVolunteerController);
 
 router.get("/attendees/filters", handleGetAttendeeFilters);
+router.post("/attendees/:id/email", handleSendSingleEmail);
+router.post("/emails/start", handleStartEmailBatch);
+router.get("/emails/progress", handleGetEmailProgress);
 router.get("/logs/filters", handleGetLogFilters);
 
 export const adminRoutes = router;

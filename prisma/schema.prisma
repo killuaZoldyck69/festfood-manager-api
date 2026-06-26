@@ -87,6 +87,12 @@ enum ScanStatus {
   MANUAL_OVERRIDE
 }
 
+enum EmailStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
 model Attendee {
   id          String @id @default(uuid())
   name        String
@@ -103,6 +109,7 @@ model Attendee {
   qrToken     String    @unique
   foodClaimed Boolean   @default(false)
   claimedAt   DateTime?
+  emailStatus String    @default("PENDING")
 
   scanLogs ScanLog[]
 

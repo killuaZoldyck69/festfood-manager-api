@@ -33,6 +33,11 @@ import {
   inventoryBodySchema,
 } from "./admin.schema";
 import { ScanStatus } from "../../../prisma/generated/client";
+import { sendAttendeeTicketEmail } from "./services/email.service";
+import {
+  getEmailProgressStats,
+  startBackgroundEmailBatch,
+} from "./services/emailWorker.service";
 
 export const handleCsvUpload = catchAsync(
   async (req: Request, res: Response): Promise<void> => {
@@ -136,7 +141,6 @@ export const handleGetLogs = catchAsync(
   async (req: Request, res: Response): Promise<void> => {
     const filters = getLogsQuerySchema.parse(req.query);
 
-    // Convert "ALL" to undefined to satisfy the strict LogFilterOptions type
     const status =
       filters.status === "ALL" ? undefined : (filters.status as ScanStatus);
 
@@ -223,5 +227,38 @@ export const handleGetLogFilters = catchAsync(
   async (req: Request, res: Response): Promise<void> => {
     const filterOptions = await getLogFilterOptions();
     res.status(200).json({ success: true, data: filterOptions });
+  },
+);
+
+export const handleSendSingleEmail = catchAsync(
+  async (req: Request, res: Response): Promise<void> => {
+    const { id } = req.params;
+
+    if (!id) throw new AppError(400, "Attendee ID is required");
+
+    await sendAttendeeTicketEmail(id as string);
+
+    res.status(200).json({
+      success: true,
+      message: `Email sent successfully.`,
+    });
+  },
+);
+
+export const handleStartEmailBatch = catchAsync(
+  async (req: Request, res: Response) => {
+    startBackgroundEmailBatch();
+
+    res.status(202).json({
+      success: true,
+      message: "Background email batch started successfully.",
+    });
+  },
+);
+
+export const handleGetEmailProgress = catchAsync(
+  async (req: Request, res: Response) => {
+    const stats = await getEmailProgressStats();
+    res.status(200).json({ success: true, data: stats });
   },
 );
