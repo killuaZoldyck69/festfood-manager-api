@@ -5,7 +5,9 @@ import { prisma } from "../../../lib/prisma";
 import { AppError } from "../../../errors/AppError";
 
 const transporter = nodemailer.createTransport({
-  service: "gmail",
+  host: envConfig.SMTP_HOST,
+  port: envConfig.SMTP_PORT || 587,
+  secure: envConfig.SMTP_PORT === 465,
   auth: {
     user: envConfig.SMTP_USER,
     pass: envConfig.SMTP_PASS,
