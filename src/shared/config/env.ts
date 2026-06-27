@@ -25,6 +25,7 @@ const envSchema = z.object({
     .default("development"),
   APP_URL: urlValidator.optional(),
   BACKEND_URL: urlValidator.optional(),
+  BREVO_API_KEY: z.string().min(1, "Brevo API key is required"),
   TRUSTED_ORIGINS: z.string().optional(),
 
   SMTP_HOST: z.string().min(1, "SMTP_HOST is required"),

@@ -1,18 +1,7 @@
-import nodemailer from "nodemailer";
 import QRCode from "qrcode";
 import { envConfig } from "../../../shared/config/env";
 import { prisma } from "../../../lib/prisma";
 import { AppError } from "../../../errors/AppError";
-
-const transporter = nodemailer.createTransport({
-  host: envConfig.SMTP_HOST,
-  port: envConfig.SMTP_PORT || 587,
-  secure: envConfig.SMTP_PORT === 465,
-  auth: {
-    user: envConfig.SMTP_USER,
-    pass: envConfig.SMTP_PASS,
-  },
-});
 
 export const sendAttendeeTicketEmail = async (
   attendeeId: string,
@@ -34,11 +23,13 @@ export const sendAttendeeTicketEmail = async (
     },
   });
 
+  const qrBase64 = qrImageBuffer.toString("base64");
+
   const ASSETS = {
-    headerImg: "https://i.ibb.co.com/NnJB8FfD/header-banner.png",
-    memoriesBubbleImg: "https://i.ibb.co.com/h1KS2FJ2/callout.png",
-    robotImg: "https://i.ibb.co.com/ynkLFP3t/robot.png",
-    footerImg: "https://i.ibb.co.com/qYHKBfWy/footer.png",
+    headerImg: "https://i.ibb.co.com/Xk7F4S63/header-banner.png",
+    memoriesBubbleImg: "https://i.ibb.co.com/dsn024x2/speech-bubble.png",
+    robotImg: "https://i.ibb.co.com/nqThLBKm/robot-mascot.png",
+    footerImg: "https://i.ibb.co.com/yFcMfTCs/footer-banner.png",
   };
 
   const htmlTemplate = `
@@ -160,17 +151,38 @@ export const sendAttendeeTicketEmail = async (
     </html>
   `;
 
-  await transporter.sendMail({
-    from: `"SMUCT CSE FEST" <${envConfig.FROM_EMAIL}>`,
-    to: attendee.email,
-    subject: "Your Event Ticket & Food Pass - SMUCT CSE FEST V3",
-    html: htmlTemplate,
-    attachments: [
-      {
-        filename: "qrcode.png",
-        content: qrImageBuffer,
-        cid: "qrcode",
+  const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      "api-key": process.env.BREVO_API_KEY as string,
+    },
+    body: JSON.stringify({
+      sender: {
+        name: "SMUCT CSE FEST",
+        email: envConfig.FROM_EMAIL,
       },
-    ],
+      to: [
+        {
+          email: attendee.email,
+          name: attendee.name,
+        },
+      ],
+      subject: "Your Event Ticket & Food Pass - SMUCT CSE FEST V3",
+      htmlContent: htmlTemplate,
+      attachment: [
+        {
+          name: "qrcode.png",
+          content: qrBase64,
+        },
+      ],
+    }),
   });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    console.error("Brevo API Error:", errorData);
+    throw new AppError(500, "Failed to send email via Brevo API.");
+  }
 };
