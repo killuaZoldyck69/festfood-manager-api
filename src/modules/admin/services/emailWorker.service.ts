@@ -36,7 +36,7 @@ export const startBackgroundEmailBatch = async (): Promise<void> => {
         });
       }
 
-      await delay(60000);
+      await delay(30000);
     }
   } catch (fatalError) {
     console.error("Fatal error in email worker:", fatalError);

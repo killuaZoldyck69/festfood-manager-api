@@ -26,10 +26,10 @@ export const sendAttendeeTicketEmail = async (
   const qrBase64 = qrImageBuffer.toString("base64");
 
   const ASSETS = {
-    headerImg: "https://i.ibb.co.com/Xk7F4S63/header-banner.png",
-    memoriesBubbleImg: "https://i.ibb.co.com/dsn024x2/speech-bubble.png",
-    robotImg: "https://i.ibb.co.com/nqThLBKm/robot-mascot.png",
-    footerImg: "https://i.ibb.co.com/yFcMfTCs/footer-banner.png",
+    headerImg: "https://i.ibb.co.com/NnJB8FfD/header-banner.png",
+    memoriesBubbleImg: "https://i.ibb.co.com/h1KS2FJ2/callout.png",
+    robotImg: "https://i.ibb.co.com/ynkLFP3t/robot.png",
+    footerImg: "https://i.ibb.co.com/qYHKBfWy/footer.png",
   };
 
   const htmlTemplate = `
@@ -37,6 +37,7 @@ export const sendAttendeeTicketEmail = async (
     <html>
     <head>
       <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f5; margin: 0; padding: 20px; }
         .container { max-width: 800px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
@@ -47,6 +48,42 @@ export const sendAttendeeTicketEmail = async (
         .label { font-weight: bold; color: #475569; font-size: 14px; width: 120px; padding-bottom: 12px;}
         .value { color: #0f172a; font-size: 14px; padding-bottom: 12px;}
         .icon { font-size: 16px; margin-right: 6px; }
+        
+        /* --- MOBILE RESPONSIVENESS --- */
+        @media only screen and (max-width: 600px) {
+          body { padding: 10px; }
+          .content-padding { padding: 15px !important; }
+          
+          /* Force table columns to stack vertically */
+          .stack-column {
+            display: block !important;
+            width: 100% !important;
+            padding-left: 0 !important;
+            padding-right: 0 !important;
+            text-align: center !important;
+          }
+          
+          /* Left-aligned stacked column for details */
+          .stack-column-left {
+            display: block !important;
+            width: 100% !important;
+            padding-left: 0 !important;
+            padding-right: 0 !important;
+            text-align: left !important;
+          }
+
+          /* Add spacing between stacked elements */
+          .mobile-mb {
+            margin-bottom: 25px !important;
+          }
+          
+          /* Adjust image sizes for mobile */
+          .memories-img {
+            width: 140px !important;
+            margin: 15px auto 0 !important;
+            display: block !important;
+          }
+        }
       </style>
     </head>
     <body>
@@ -54,23 +91,25 @@ export const sendAttendeeTicketEmail = async (
         <img src="${ASSETS.headerImg}" alt="SMUCT CSE FEST V3" style="width: 100%; display: block; border: 0;" />
         
         <div class="content-padding">
+          <!-- WELCOME SECTION -->
           <table>
             <tr>
-              <td>
+              <td class="stack-column-left mobile-mb">
                 <h2 style="margin: 0; color: #0f172a; font-size: 24px;">Hello <span class="text-purple">${attendee.name}</span>,</h2>
                 <p style="color: #475569; line-height: 1.6; margin-top: 10px;">We are excited to see you at the fest! Below are your registration details and your official QR Code Food Pass. Please present this QR code to the volunteers at the food distribution desk.</p>
               </td>
-              <td style="width: 200px; text-align: right; vertical-align: top;">
-                <img src="${ASSETS.memoriesBubbleImg}" alt="Let's make some memories" style="width: 180px;" />
+              <td class="stack-column" style="width: 200px; text-align: right; vertical-align: top;">
+                <img src="${ASSETS.memoriesBubbleImg}" class="memories-img" alt="Let's make some memories" style="width: 180px;" />
               </td>
             </tr>
           </table>
 
           <div style="height: 30px;"></div>
 
+          <!-- DETAILS AND QR SECTION -->
           <table>
             <tr>
-              <td style="width: 50%; vertical-align: top; padding-right: 15px;">
+              <td class="stack-column-left mobile-mb" style="width: 50%; vertical-align: top; padding-right: 15px;">
                 <div class="card">
                   <h3 class="text-purple" style="margin-top: 0; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px;">PARTICIPANT DETAILS</h3>
                   <table>
@@ -87,14 +126,14 @@ export const sendAttendeeTicketEmail = async (
                 </div>
               </td>
 
-              <td style="width: 50%; vertical-align: top; padding-left: 15px;">
+              <td class="stack-column-left" style="width: 50%; vertical-align: top; padding-left: 15px;">
                 <div style="border: 2px solid #e2e8f0; border-radius: 12px; overflow: hidden; text-align: center;">
                   <div style="background-color: #5b21b6; color: white; padding: 10px; font-weight: bold; letter-spacing: 1px;">
                     ★ FOOD PASS ★
                   </div>
                   <div style="padding: 20px;">
-                    <img src="cid:qrcode" alt="QR Code" style="width: 200px; height: 200px; border: 1px solid #cbd5e1; border-radius: 8px;" />
-                    <p class="text-purple" style="font-weight: bold; margin-bottom: 0;">SCAN FOR FOOD</p>
+                    <img src="cid:Your_Food_Pass_QR_Code.png" alt="Your Food Pass QR Code" style="width: 200px; height: 200px; border: 1px solid #cbd5e1; border-radius: 8px; margin: 0 auto;" />
+                    <p class="text-purple" style="font-weight: bold; margin-bottom: 0; margin-top: 10px;">SCAN FOR FOOD</p>
                   </div>
                 </div>
                 
@@ -112,11 +151,11 @@ export const sendAttendeeTicketEmail = async (
           
           <div style="height: 30px;"></div>
 
-          <!-- FIXED: Wrapped in a div for reliable border-radius and padding -->
+          <!-- FOOTER DETAILS SECTION -->
           <div class="card">
             <table style="width: 100%;">
               <tr>
-                <td style="width: 35%; vertical-align: top; padding-right: 15px;">
+                <td class="stack-column mobile-mb" style="width: 35%; vertical-align: top; padding-right: 15px;">
                   <h4 class="text-purple" style="margin-top: 0;">EVENT INFORMATION</h4>
                   <p style="font-size: 13px; color: #475569; line-height: 1.8; margin: 0;">
                     <strong>🗓️ Date:</strong> 18 July, 2026<br>
@@ -125,10 +164,10 @@ export const sendAttendeeTicketEmail = async (
                     <strong>💬 Queries:</strong> csefest@smuct.ac.bd
                   </p>
                 </td>
-                <td style="width: 30%; text-align: center; vertical-align: middle;">
+                <td class="stack-column mobile-mb" style="width: 30%; text-align: center; vertical-align: middle;">
                    <img src="${ASSETS.robotImg}" alt="Mascot" style="width: 130px; display: inline-block;" />
                 </td>
-                <td style="width: 35%; vertical-align: top; padding-left: 15px;">
+                <td class="stack-column" style="width: 35%; vertical-align: top; padding-left: 15px;">
                   <h4 class="text-purple" style="margin-top: 0;">DEVELOPED BY</h4>
                   <p style="font-size: 13px; color: #475569; line-height: 1.8; margin: 0;">
                     ⚡ No one knows who 👻
@@ -141,6 +180,8 @@ export const sendAttendeeTicketEmail = async (
         
         <img src="${ASSETS.footerImg}" alt="Thank you for being part of SMUCT CSE FEST V3" style="width: 100%; display: block; border: 0;" />
       </div>
+      
+      <!-- DOWNLOAD BUTTON -->
       <div style="text-align: center; margin: 30px 0;">
         <a href="${envConfig.BACKEND_URL || "http://localhost:5000"}/api/tickets/${attendee.id}/download" 
            style="background-color: #5b21b6; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px; display: inline-block; box-shadow: 0 4px 6px rgba(91, 33, 182, 0.2);">
@@ -156,7 +197,7 @@ export const sendAttendeeTicketEmail = async (
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",
-      "api-key": process.env.BREVO_API_KEY as string,
+      "api-key": envConfig.BREVO_API_KEY as string,
     },
     body: JSON.stringify({
       sender: {
@@ -173,7 +214,7 @@ export const sendAttendeeTicketEmail = async (
       htmlContent: htmlTemplate,
       attachment: [
         {
-          name: "qrcode.png",
+          name: "Your_Food_Pass_QR_Code.png",
           content: qrBase64,
         },
       ],
