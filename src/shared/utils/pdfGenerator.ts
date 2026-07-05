@@ -10,9 +10,9 @@ export interface AttendeeTicketData {
   email: string;
   studentId: string;
   university: string;
-  category: string;
+  segment: string;
   semester: string;
-  section: string;
+  team: string;
   qrToken: string;
 }
 
@@ -141,14 +141,14 @@ const drawDetails = (
       });
   };
 
-  const semSecString = `${attendee.semester || "N/A"} / ${attendee.section || "N/A"}`;
+  const semSecString = `${attendee.semester || "N/A"} / ${attendee.team || "N/A"}`;
 
   drawRow("Name:", attendee.name, 0, true);
   drawRow("ID:", attendee.studentId, 14);
   drawRow("Sem/Sec:", semSecString, 28);
   drawRow("Email:", attendee.email, 42);
   drawRow("University:", attendee.university, 56);
-  drawRow("Category:", attendee.category, 70);
+  drawRow("Segment:", attendee.segment, 70);
 };
 
 const drawQrSection = async (

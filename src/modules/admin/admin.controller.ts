@@ -38,6 +38,7 @@ import {
   getEmailProgressStats,
   startBackgroundEmailBatch,
 } from "./services/emailWorker.service";
+import { prisma } from "../../lib";
 
 export const handleCsvUpload = catchAsync(
   async (req: Request, res: Response): Promise<void> => {
@@ -147,7 +148,7 @@ export const handleGetLogs = catchAsync(
     const result = await getSystemLogs(filters.page, filters.limit, {
       search: filters.search,
       status,
-      category: filters.category,
+      segment: filters.segment,
       volunteerEmail: filters.volunteerEmail,
     });
 
@@ -237,6 +238,11 @@ export const handleSendSingleEmail = catchAsync(
     if (!id) throw new AppError(400, "Attendee ID is required");
 
     await sendAttendeeTicketEmail(id as string);
+
+    await prisma.attendee.update({
+      where: { id: id as string },
+      data: { emailStatus: "SENT" },
+    });
 
     res.status(200).json({
       success: true,

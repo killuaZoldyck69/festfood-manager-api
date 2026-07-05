@@ -60,7 +60,7 @@ describe("Unit: Logs Service", () => {
         { attendeeId: "a1", _count: { id: 5 } },
       ]);
       prismaMock.attendee.findMany.mockResolvedValue([
-        { id: "a1", category: "Hackathon" },
+        { id: "a1", segment: "Hackathon" },
       ]);
 
       const result = await getLogFilterOptions();

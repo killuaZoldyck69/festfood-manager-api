@@ -115,13 +115,13 @@ export const sendAttendeeTicketEmail = async (
                   <table>
                     <tr><td class="label"><span class="icon">🆔</span> ID:</td><td class="value"><strong>${attendee.studentId}</strong></td></tr>
                     <tr><td class="label"><span class="icon">👤</span> Name:</td><td class="value">${attendee.name}</td></tr>
-                    <tr><td class="label"><span class="icon">🏷️</span> Category:</td><td class="value text-purple"><strong>${attendee.category}</strong></td></tr>
+                    <tr><td class="label"><span class="icon">🏷️</span> Segment:</td><td class="value text-purple"><strong>${attendee.segment}</strong></td></tr>
                     <tr><td class="label"><span class="icon">🎓</span> University:</td><td class="value">${attendee.university}</td></tr>
                     <tr><td class="label"><span class="icon">🏢</span> Dept:</td><td class="value">${attendee.department || "N/A"}</td></tr>
-                    <tr><td class="label"><span class="icon">📞</span> Phone:</td><td class="value">${attendee.phoneNumber || "N/A"}</td></tr>
+                    <tr><td class="label"><span class="icon">📞</span> Phone:</td><td class="value">${attendee.phone || "N/A"}</td></tr>
                     <tr><td class="label"><span class="icon">📧</span> Email:</td><td class="value">${attendee.email}</td></tr>
                     <tr><td class="label"><span class="icon">📅</span> Semester:</td><td class="value">${attendee.semester || "N/A"}</td></tr>
-                    <tr><td class="label"><span class="icon">🏫</span> Section:</td><td class="value">${attendee.section || "N/A"}</td></tr>
+                    <tr><td class="label"><span class="icon">🏫</span> Team:</td><td class="value">${attendee.team || "N/A"}</td></tr>
                   </table>
                 </div>
               </td>

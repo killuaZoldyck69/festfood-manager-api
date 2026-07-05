@@ -11,18 +11,18 @@ export interface FormattedLog {
   attendeeName: string | null;
   attendeeEmail: string | null;
   studentId: string | null;
-  category: string | null;
+  segment: string | null;
   university: string | null;
   department: string | null;
-  phoneNumber: string | null;
+  phone: string | null;
   semester: string | null;
-  section: string | null;
+  team: string | null;
 }
 
 export interface LogFilterOptions {
   status?: ScanStatus;
   search?: string;
-  category?: string;
+  segment?: string;
   volunteerEmail?: string;
 }
 export type PaginatedLogResponse = PaginatedResponse<FormattedLog>;

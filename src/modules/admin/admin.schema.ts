@@ -25,7 +25,7 @@ export const getLogsQuerySchema = z.object({
   limit: z.coerce.number().min(1).default(20),
   search: z.string().optional(),
   status: z.string().optional(),
-  category: z.string().optional(),
+  segment: z.string().optional(),
   volunteerEmail: z.string().optional(),
 });
 
@@ -34,6 +34,6 @@ export const getAttendeesQuerySchema = z.object({
   page: z.coerce.number().min(1).default(1),
   limit: z.coerce.number().min(1).default(25),
   status: z.enum(["ALL", "CLAIMED", "PENDING"]).default("ALL"),
-  category: z.string().optional(),
+  segment: z.string().optional(),
   university: z.string().optional(),
 });

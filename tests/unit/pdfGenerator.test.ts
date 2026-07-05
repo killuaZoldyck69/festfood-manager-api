@@ -66,9 +66,9 @@ describe("Unit: PDF Generator", () => {
     email: "john@example.com",
     studentId: "12345",
     university: "Test University",
-    category: "General",
+    segment: "General",
     semester: "Fall 2026",
-    section: "A",
+    team: "A",
     qrToken: "test-token-123",
   };
 

@@ -7,12 +7,13 @@ export interface AttendeeListItem {
   studentId: string;
   university: string;
   department: string;
-  phoneNumber: string;
+  phone: string;
   role: string;
-  category: string;
+  segment: string;
   semester: string;
-  section: string;
+  team: string;
   qrToken: string;
+  emailStatus: string;
   foodClaimed: boolean;
   claimedAt: Date | null;
   createdAt: Date;
@@ -24,7 +25,7 @@ export interface AttendeeListItem {
 export interface AttendeeFilterOptions {
   search?: string;
   role?: string;
-  category?: string;
+  segment?: string;
   status?: "CLAIMED" | "UNCLAIMED";
   university?: string;
 }

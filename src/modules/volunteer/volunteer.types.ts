@@ -9,10 +9,10 @@ export interface VolunteerLogEntry {
   attendeeName: string | null;
   attendeeEmail: string | null;
   studentId: string | null;
-  category: string | null;
+  segment: string | null;
   university: string | null;
   semester: string | null;
-  section: string | null;
+  team: string | null;
   volunteerName: string | null;
   volunteerEmail: string | null;
 }

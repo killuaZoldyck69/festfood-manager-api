@@ -27,12 +27,7 @@ const envSchema = z.object({
   BACKEND_URL: urlValidator.optional(),
   BREVO_API_KEY: z.string().min(1, "Brevo API key is required"),
   TRUSTED_ORIGINS: z.string().optional(),
-
-  SMTP_HOST: z.string().min(1, "SMTP_HOST is required"),
-  SMTP_PORT: z.coerce.number().default(587),
-  SMTP_USER: z.string().min(1, "SMTP_USER is required"),
-  SMTP_PASS: z.string().min(1, "SMTP_PASS is required"),
-  FROM_EMAIL: z.string().email("FROM_EMAIL must be a valid email"),
+  FROM_EMAIL: z.email("FROM_EMAIL must be a valid email"),
 });
 
 export const envConfig = envSchema.parse(process.env);

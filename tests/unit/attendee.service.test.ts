@@ -27,7 +27,7 @@ describe("Unit: Attendee Service (CSV Upload)", () => {
   });
 
   it("rejects CSV row with whitespace-only field", async () => {
-    const csvWithWhitespace = `name,email,studentId,university,role,category,semester,section
+    const csvWithWhitespace = `name,email,studentId,university,role,segment,semester,team
 John Doe,john@example.com,S001,Uni,Student,Cat, ,A`; // Semester is just space
     await expect(
       uploadAttendeesFromCsv(Buffer.from(csvWithWhitespace)),

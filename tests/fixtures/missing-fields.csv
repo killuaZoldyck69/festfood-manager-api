@@ -1,4 +1,4 @@
-name,email,studentId,university,role,category,semester,section
+name,email,studentId,university,role,segment,semester,team
 User One,user1@example.com,S001,Uni A,Student,Hackathon,Fall 2026,A
 User Two,user2@example.com,S002,Uni B,Student,Datathon,,B
 User Three,user3@example.com,S003,Uni A,Faculty,General,Fall 2026,C

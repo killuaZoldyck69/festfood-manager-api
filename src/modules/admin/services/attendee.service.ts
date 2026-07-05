@@ -1,13 +1,9 @@
 import { v4 as uuidv4 } from "uuid";
 import { parse } from "csv-parse/sync";
 import { z } from "zod";
-import path from "path";
 import { prisma } from "../../../lib/prisma";
 import { AppError } from "../../../errors/AppError";
 import { buildPdfTicketsToDisk } from "../../../shared/utils/pdfGenerator";
-import { assertInventoryAvailable } from "../../../shared/utils/inventory";
-
-import { AttendeeTicketData } from "../../../shared/utils/pdfGenerator";
 import { CsvRow } from "../types/csv.types";
 import {
   AttendeeFilterOptions,
@@ -16,23 +12,17 @@ import {
 } from "../types/attendee.types";
 import { Prisma } from "../../../../prisma/generated/client";
 
-const emailValidator = z
-  .string()
-  .refine((val) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val), {
-    message: "Invalid email address format",
-  });
-
 const csvRowSchema = z.object({
   name: z.string().min(1),
-  email: emailValidator,
+  email: z.email().min(1),
   studentId: z.string().min(1),
   university: z.string().min(1),
   department: z.string().min(1),
-  phoneNumber: z.string().min(1),
+  phone: z.string().min(1),
   semester: z.string().min(1),
-  section: z.string().min(1),
+  team: z.string().min(1),
   role: z.string().min(1),
-  category: z.string().min(1),
+  segment: z.string().min(1),
 });
 
 export const uploadAttendeesFromCsv = async (
@@ -46,73 +36,53 @@ export const uploadAttendeesFromCsv = async (
   }) as Record<string, unknown>[];
 
   const cleanedRecords: CsvRow[] = [];
-  const csvEmailsSet = new Set<string>();
 
   for (let i = 0; i < records.length; i++) {
     const row = records[i];
 
     const cleanedRow = {
-      name: String(row.name || "").trim(),
-      email: String(row.email || "")
+      name: String(row["Name"] || "").trim(),
+      email: String(row["Email"] || "")
         .trim()
         .toLowerCase(),
-      studentId: String(row.studentId || "").trim(),
-      university: String(row.university || "").trim(),
-      department: String(row.department || "").trim(),
-      phoneNumber: String(row.phoneNumber || "").trim(),
-      semester: String(row.semester || "").trim(),
-      section: String(row.section || "").trim(),
-      role: String(row.role || "").trim(),
-      category: String(row.category || "").trim(),
+      studentId: String(row["Student ID"] || "").trim(),
+      university: String(row["University"] || "").trim(),
+      department: String(row["Department"] || "").trim(),
+      phone: String(row["Phone"] || "").trim(),
+      semester: String(row["Semester"] || "").trim(),
+      team: String(row["Team"] || "").trim(),
+      role: String(row["Role"] || "").trim(),
+      segment: String(row["Segment"] || "").trim(),
     };
 
     const validation = csvRowSchema.safeParse(cleanedRow);
     if (!validation.success) {
       throw new AppError(
         400,
-        `Row ${i + 2} (Email: ${row.email || "Unknown"}) has invalid data. Error: ${validation.error.issues[0].message}`,
+        `Row ${i + 2} (Email: ${row["Email"] || "Unknown"}) has invalid data. Error: ${validation.error.issues[0].message}`,
       );
     }
 
     cleanedRecords.push(validation.data);
-    csvEmailsSet.add(validation.data.email);
   }
 
-  const existingAttendees = await prisma.attendee.findMany({
-    where: { email: { in: Array.from(csvEmailsSet) } },
-    select: { email: true },
-  });
-
-  const existingEmailSet = new Set(existingAttendees.map((a) => a.email));
-
-  const newAttendeesData = cleanedRecords
-    .filter((record) => !existingEmailSet.has(record.email))
-    .map((record) => ({
-      ...record,
-      qrToken: uuidv4(),
-    }));
+  const newAttendeesData = cleanedRecords.map((record) => ({
+    ...record,
+    id: uuidv4(),
+    qrToken: uuidv4(),
+  }));
 
   const insertedCount = newAttendeesData.length;
 
   if (insertedCount === 0) {
-    throw new AppError(
-      409,
-      "All attendees in this CSV are already in the system. No duplicate tickets were created.",
-    );
+    throw new AppError(400, "The uploaded CSV contains no valid data.");
   }
 
   await prisma.attendee.createMany({
     data: newAttendeesData,
-    skipDuplicates: true,
   });
 
-  const insertedEmails = newAttendeesData.map((a) => a.email);
-  const insertedRecords = await prisma.attendee.findMany({
-    where: { email: { in: insertedEmails } },
-    select: { id: true },
-  });
-
-  const insertedIds = insertedRecords.map((r) => r.id);
+  const insertedIds = newAttendeesData.map((a) => a.id);
 
   return { insertedCount, insertedIds };
 };
@@ -144,8 +114,8 @@ export const getAttendeesList = async (
   if (filters.status === "CLAIMED") whereClause.foodClaimed = true;
   else if (filters.status === "UNCLAIMED") whereClause.foodClaimed = false;
 
-  if (filters.category && filters.category !== "ALL") {
-    whereClause.category = filters.category;
+  if (filters.segment && filters.segment !== "ALL") {
+    whereClause.segment = filters.segment;
   }
   if (filters.role && filters.role !== "ALL") {
     whereClause.role = filters.role;
@@ -190,12 +160,13 @@ export const getAttendeesList = async (
       studentId: attendee.studentId,
       university: attendee.university,
       department: attendee.department,
-      phoneNumber: attendee.phoneNumber,
+      phone: attendee.phone,
       role: attendee.role,
-      category: attendee.category,
+      segment: attendee.segment,
       semester: attendee.semester || "",
-      section: attendee.section || "",
+      team: attendee.team || "",
       qrToken: attendee.qrToken,
+      emailStatus: attendee.emailStatus,
       foodClaimed: attendee.foodClaimed,
       claimedAt: attendee.claimedAt,
       createdAt: attendee.createdAt,
@@ -259,7 +230,7 @@ export const processManualOverride = async (
     return {
       ...updatedAttendee,
       semester: updatedAttendee.semester || "",
-      section: updatedAttendee.section || "",
+      team: updatedAttendee.team || "",
       scannerName: null,
       scannerRole: null,
     };
@@ -283,11 +254,11 @@ export const getAttendeeFilterOptions = async (): Promise<{
   categories: { name: string; count: number }[];
   universities: { name: string; count: number }[];
 }> => {
-  const [categoryResult, universityResult] = await Promise.all([
+  const [segmentResult, universityResult] = await Promise.all([
     prisma.attendee.groupBy({
-      by: ["category"],
-      _count: { category: true },
-      orderBy: { category: "asc" },
+      by: ["segment"],
+      _count: { segment: true },
+      orderBy: { segment: "asc" },
     }),
     prisma.attendee.groupBy({
       by: ["university"],
@@ -296,11 +267,11 @@ export const getAttendeeFilterOptions = async (): Promise<{
     }),
   ]);
 
-  const categories = categoryResult
-    .filter((item) => item.category)
+  const categories = segmentResult
+    .filter((item) => item.segment)
     .map((item) => ({
-      name: item.category as string,
-      count: item._count.category,
+      name: item.segment as string,
+      count: item._count.segment,
     }));
 
   const universities = universityResult
@@ -327,9 +298,9 @@ export const prepareAllTicketsBackup = async (): Promise<string> => {
     email: a.email,
     studentId: a.studentId,
     university: a.university,
-    category: a.category,
+    segment: a.segment,
     semester: a.semester || "",
-    section: a.section || "",
+    team: a.team || "",
     qrToken: a.qrToken,
   }));
 

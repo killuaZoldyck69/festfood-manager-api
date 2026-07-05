@@ -24,8 +24,8 @@ export const getSystemLogs = async (
 
   const attendeeFilter: Prisma.AttendeeWhereInput = {};
 
-  if (filters.category && filters.category !== "ALL") {
-    attendeeFilter.category = filters.category;
+  if (filters.segment && filters.segment !== "ALL") {
+    attendeeFilter.segment = filters.segment;
   }
 
   if (filters.search && filters.search.trim() !== "") {
@@ -55,13 +55,13 @@ export const getSystemLogs = async (
           select: {
             name: true,
             studentId: true,
-            category: true,
+            segment: true,
             email: true,
             university: true,
             department: true,
-            phoneNumber: true,
+            phone: true,
             semester: true,
-            section: true,
+            team: true,
           },
         },
       },
@@ -78,12 +78,12 @@ export const getSystemLogs = async (
     attendeeName: log.attendee?.name || null,
     attendeeEmail: log.attendee?.email || null,
     studentId: log.attendee?.studentId || null,
-    category: log.attendee?.category || null,
+    segment: log.attendee?.segment || null,
     university: log.attendee?.university || null,
     department: log.attendee?.department || null,
-    phoneNumber: log.attendee?.phoneNumber || null,
+    phone: log.attendee?.phone || null,
     semester: log.attendee?.semester || null,
-    section: log.attendee?.section || null,
+    team: log.attendee?.team || null,
   }));
 
   return {
@@ -140,21 +140,21 @@ export const getLogFilterOptions = async (): Promise<{
     where: {
       id: { in: attendeeLogs.map((a) => a.attendeeId as string) },
     },
-    select: { id: true, category: true },
+    select: { id: true, segment: true },
   });
 
-  const attendeeMap = new Map(attendees.map((a) => [a.id, a.category]));
-  const categoryMap = new Map<string, number>();
+  const attendeeMap = new Map(attendees.map((a) => [a.id, a.segment]));
+  const segmentMap = new Map<string, number>();
 
   for (const log of attendeeLogs) {
-    const categoryName = attendeeMap.get(log.attendeeId as string);
-    if (categoryName) {
-      const currentCount = categoryMap.get(categoryName) || 0;
-      categoryMap.set(categoryName, currentCount + log._count.id);
+    const segmentName = attendeeMap.get(log.attendeeId as string);
+    if (segmentName) {
+      const currentCount = segmentMap.get(segmentName) || 0;
+      segmentMap.set(segmentName, currentCount + log._count.id);
     }
   }
 
-  const categories = Array.from(categoryMap.entries())
+  const categories = Array.from(segmentMap.entries())
     .map(([name, count]) => ({ name, count }))
     .sort((a, b) => b.count - a.count);
 

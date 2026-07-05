@@ -10,9 +10,9 @@ export type ScanResult =
         email: string;
         studentId: string;
         semester: string | null;
-        section: string | null;
+        team: string | null;
         university: string | null;
-        category: string | null;
+        segment: string | null;
         claimedAt: Date | null;
       };
     }

@@ -94,17 +94,17 @@ enum EmailStatus {
 }
 
 model Attendee {
-  id          String @id @default(uuid())
-  name        String
-  email       String @unique
-  studentId   String
-  university  String
-  department  String
-  phoneNumber String
-  semester    String
-  section     String
-  role        String
-  category    String
+  id         String @id @default(uuid())
+  name       String
+  email      String
+  studentId  String
+  university String
+  department String
+  phone      String
+  semester   String
+  team       String
+  role       String
+  segment    String
 
   qrToken     String    @unique
   foodClaimed Boolean   @default(false)

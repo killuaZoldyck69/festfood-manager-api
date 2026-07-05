@@ -4,11 +4,11 @@ export interface CsvRow {
   studentId: string;
   university: string;
   department: string;
-  phoneNumber: string;
+  phone: string;
   semester: string;
-  section: string;
+  team: string;
   role: string;
-  category: string;
+  segment: string;
 }
 
 export interface ParsedCsvRow extends CsvRow {

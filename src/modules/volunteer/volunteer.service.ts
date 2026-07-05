@@ -1,4 +1,3 @@
-import { tr } from "zod/locales";
 import { Prisma } from "../../../prisma/generated/client";
 import { ScanStatus } from "../../../prisma/generated/enums";
 import { prisma } from "../../lib/prisma";
@@ -51,11 +50,11 @@ export const getVolunteerLogs = async (
           select: {
             name: true,
             university: true,
-            category: true,
+            segment: true,
             email: true,
             studentId: true,
             semester: true,
-            section: true,
+            team: true,
           },
         },
         volunteer: {
@@ -73,10 +72,10 @@ export const getVolunteerLogs = async (
     attendeeName: log.attendee?.name || null,
     attendeeEmail: log.attendee?.email || null,
     studentId: log.attendee?.studentId || null,
-    category: log.attendee?.category || null,
+    segment: log.attendee?.segment || null,
     university: log.attendee?.university || null,
     semester: log.attendee?.semester || null,
-    section: log.attendee?.section || null,
+    team: log.attendee?.team || null,
     volunteerName: log.volunteer?.name || null,
     volunteerEmail: log.volunteer?.email || null,
   }));

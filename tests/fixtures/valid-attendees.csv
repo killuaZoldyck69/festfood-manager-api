@@ -1,4 +1,4 @@
-name,email,studentId,university,role,category,semester,section
+name,email,studentId,university,role,segment,semester,team
 John Doe,john@example.com,S001,Test Uni,Student,Hackathon,Fall 2026,A
 Jane Smith,jane@example.com,S002,Test Uni,Student,Datathon,Fall 2026,B
 Alice Jones,alice@example.com,S003,Test Uni,Faculty,General,Fall 2026,C
