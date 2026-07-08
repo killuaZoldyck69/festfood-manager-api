@@ -88,6 +88,7 @@ export const processScan = async (
           studentId: txResult.attendee.studentId,
           semester: txResult.attendee.semester,
           team: txResult.attendee.team,
+          role: txResult.attendee.role,
           university: txResult.attendee.university,
           segment: txResult.attendee.segment,
           claimedAt: txResult.attendee.claimedAt,

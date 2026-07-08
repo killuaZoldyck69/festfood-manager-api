@@ -11,6 +11,7 @@ export type ScanResult =
         studentId: string;
         semester: string | null;
         team: string | null;
+        role: string | null;
         university: string | null;
         segment: string | null;
         claimedAt: Date | null;

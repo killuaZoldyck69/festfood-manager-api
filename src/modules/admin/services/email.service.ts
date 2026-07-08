@@ -54,29 +54,24 @@ const FRIENDS_OVERRIDES: Record<
       'কি অবস্থা <span class="text-purple">Mahin ভাই</span> (Morality কই গেলো?),',
     bubbleImg: "https://i.ibb.co.com/pB5zf2Bv/ay-tore-morality-shikhai.png",
   },
+  "allmahin.study@gmail.com": {
+    greeting:
+      'কি অবস্থা <span class="text-purple">Mahin ভাই</span> (Morality কই গেলো?),',
+    bubbleImg: "https://i.ibb.co.com/pB5zf2Bv/ay-tore-morality-shikhai.png",
+  },
   "kalukalu200572@gmail.com": {
     greeting:
       'Hello <span class="text-purple">Sreecheta Sarker Tori</span> (Hi/Let&apos;s try),',
-    bubbleImg: "https://i.ibb.co.com/CpXhn1FW/i-want-to-try-again.png",
-  },
-  "tanver694225@gmail.com": {
-    greeting:
-      'Hello <span class="text-purple">Sreecheta Sarker Tori</span> (Hi, Let&apos;s try),',
     bubbleImg: "https://i.ibb.co.com/CpXhn1FW/i-want-to-try-again.png",
   },
   "meherentamanna2022@gmail.com": {
     greeting: 'Hello <span class="text-purple">Meheren Tamanna ✨✨</span>,',
     bubbleImg: "https://i.ibb.co.com/DHJMm1SW/hi-can-we-talk.png",
     specialLink: {
-      url: "https://your-secret-website.com",
-      text: " If yes, you can go to this link. Don't worry—it's not a malicious link. It's just a simple website. ✅",
+      url: "https://lets-try-again-sigma.vercel.app/",
+      text: "If yes, click to this text box. Don't worry—it's not a malicious link. It's just a simple webpage. ✅",
     },
     robotImg: "https://i.ibb.co.com/ycDdpKfV/we-can-meet-robot-mascot.png",
-  },
-  "nh694225@gmail.com": {
-    greeting:
-      'কি অবস্থা <span class="text-purple">Mahin ভাই</span> (Morality কই গেলো?),',
-    bubbleImg: "https://i.ibb.co.com/pB5zf2Bv/ay-tore-morality-shikhai.png",
   },
 };
 
@@ -140,8 +135,11 @@ export const sendAttendeeTicketEmail = async (
         .text-purple { color: #5b21b6; }
         table { width: 100%; border-collapse: collapse; }
         .card { background-color: #f8fafc; border-radius: 12px; padding: 20px; border: 1px solid #e2e8f0; box-sizing: border-box; }
-        .label { font-weight: bold; color: #475569; font-size: 14px; width: 120px; padding-bottom: 12px;}
-        .value { color: #0f172a; font-size: 14px; padding-bottom: 12px;}
+        
+        /* UPDATED: Fixed vertical alignment and word breaking */
+        .label { font-weight: bold; color: #475569; font-size: 14px; width: 100px; padding-bottom: 12px; vertical-align: top; padding-right: 8px; }
+        .value { color: #0f172a; font-size: 14px; padding-bottom: 12px; vertical-align: top; line-height: 1.4; word-break: break-word; }
+        
         .icon { font-size: 16px; margin-right: 6px; }
         
         /* --- MOBILE RESPONSIVENESS --- */
@@ -179,7 +177,7 @@ export const sendAttendeeTicketEmail = async (
             display: block !important;
           }
 
-          /* Center developer section on mobile */
+          /* Center developer section firmly on mobile */
           .dev-table {
             margin: 0 auto !important;
           }
@@ -253,7 +251,7 @@ export const sendAttendeeTicketEmail = async (
           <div class="card">
             <table style="width: 100%;">
               <tr>
-                <td class="stack-column mobile-mb" style="width: 35%; vertical-align: top; padding-right: 15px;">
+                <td class="stack-column-left mobile-mb" style="width: 35%; vertical-align: top; padding-right: 15px;">
                   <h4 class="text-purple" style="margin-top: 0;">EVENT INFORMATION</h4>
                   <p style="font-size: 13px; color: #475569; line-height: 1.8; margin: 0;">
                     <strong>🗓️ Date:</strong> 18 July, 2026<br>
@@ -267,25 +265,20 @@ export const sendAttendeeTicketEmail = async (
                    <img src="${finalRobotImg}" alt="Mascot" style="width: 130px; display: inline-block;" />
                 </td>
                 
-                <td class="stack-column" style="width: 35%; vertical-align: top; padding-left: 15px;">
+                <td class="stack-column" style="width: 35%; vertical-align: top; padding-left: 15px; text-align: center;">
                   <h4 class="text-purple" style="margin-top: 0;">DEVELOPED BY</h4>
                   
-                  <table class="dev-table" style="border-collapse: collapse; margin-top: 10px;">
+                  <table class="dev-table" style="border-collapse: collapse; margin: 10px auto 0;">
                     <tr>
-                      <td style="padding-right: 1px;">
-                        <a href="https://github.com/killuaZoldyck69" target="_blank" style="text-decoration: none;">
-                          <img src="https://avatars.githubusercontent.com/u/161418568?v=4" alt="Tanver" style="width: 40px; height: 40px; border-radius: 50%; border: 2px solid #5b21b6; display: block;" />
-                        </a>
-                      </td>
-                      <td>
-                        <a href="https://github.com/ARShishir" target="_blank" style="text-decoration: none;">
-                          <img src="https://avatars.githubusercontent.com/u/136100734?v=4" alt="Abdur Rahaman Shishir" style="width: 40px; height: 40px; border-radius: 50%; border: 2px solid #5b21b6; display: block;" />
+                      <td style="padding: 0 10px;">
+                        <a href="https://github.com/killuaZoldyck69" target="_blank" style="text-decoration: none; display: inline-block;">
+                          <img src="https://avatars.githubusercontent.com/u/161418568?v=4" alt="Tanver" style="width: 44px; height: 44px; border-radius: 50%; border: 2px solid #5b21b6; display: block;" />
                         </a>
                       </td>
                     </tr>
                   </table>
                   <p style="font-size: 11px; color: #64748b; margin-top: 8px; margin-bottom: 0;">
-                    Click to view profiles
+                    Click to view profile
                   </p>
                 </td>
 
