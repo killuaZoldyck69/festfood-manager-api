@@ -3,6 +3,83 @@ import { envConfig } from "../../../shared/config/env";
 import { prisma } from "../../../lib/prisma";
 import { AppError } from "../../../errors/AppError";
 
+const FRIENDS_OVERRIDES: Record<
+  string,
+  {
+    greeting?: string;
+    bubbleImg?: string;
+    robotImg?: string;
+    specialLink?: { url: string; text: string };
+  }
+> = {
+  "ferdausemahmud@gmail.com": {
+    greeting: 'কিরে <span class="text-purple">Racist Nigga</span> (Mahmud),',
+    bubbleImg:
+      "https://i.ibb.co.com/FbGff6XM/GTA-5-Lamar-Nigga-GTA-V-Lamar-Davis-Meme.gif",
+    robotImg: "https://i.ibb.co.com/7JRxv6Ks/mosambi-ka-juice-pila-do.png",
+  },
+  "mahinahmedmad@gmail.com": {
+    greeting:
+      'কিরে <span class="text-purple">Mahin</span> (দেখলে তাকাইয়া থাকবি কিন্তু),',
+    bubbleImg: "https://i.ibb.co.com/n84ZQbnt/mahin-gorila.png",
+  },
+  "asikurrahman023@gmail.com": {
+    greeting:
+      'কি খবর <span class="text-purple">বিবাহিত</span> (Asikur Rahman Anik),',
+    bubbleImg: "https://i.ibb.co.com/VWHmZJLJ/onik-meow-ghop.jpg",
+    robotImg: "https://i.ibb.co.com/GftLTqy7/amar-tare-dekhle-dak-dio.png",
+  },
+  "ibrahimbappy52478@gmail.com": {
+    greeting: 'Yo <span class="text-purple">আলামিনের</span> (Ebrahim),',
+    bubbleImg: "https://i.ibb.co.com/gLYyFzVX/ibrahim-khobor-ase.png",
+    robotImg:
+      "https://i.ibb.co.com/GfCX9JW9/Alamin-kintu-tomar-jonno-wait-kortese-Ibrahim.png",
+  },
+  "radwanhossan18@gmail.com": {
+    greeting:
+      'আসসালামু আলাইকুম <span class="text-purple">Shakil ভাই</span> (Next Nokib Sir),',
+  },
+  "smuct82@gmail.com": {
+    greeting: 'কিরে <span class="text-purple">ছোলা</span> (Soliman),',
+    bubbleImg: "https://i.ibb.co.com/W4z9FdqV/solaiman-mask.png",
+    robotImg:
+      "https://i.ibb.co.com/J9VbZNt/musk-na-khulle-tore-khabar-dimu-nah.png",
+  },
+  "khanmdroman53@gmail.com": {
+    greeting: 'কি অবস্থা <span class="text-purple">Gwak</span> (Roman),',
+    bubbleImg: "https://i.ibb.co.com/MkG0NbMp/ladlee-meoww-ghop-ghop.png",
+  },
+  "torteypoka@gmail.com": {
+    greeting:
+      'কি অবস্থা <span class="text-purple">Mahin ভাই</span> (Morality কই গেলো?),',
+    bubbleImg: "https://i.ibb.co.com/pB5zf2Bv/ay-tore-morality-shikhai.png",
+  },
+  "kalukalu200572@gmail.com": {
+    greeting:
+      'Hello <span class="text-purple">Sreecheta Sarker Tori</span> (Hi/Let&apos;s try),',
+    bubbleImg: "https://i.ibb.co.com/CpXhn1FW/i-want-to-try-again.png",
+  },
+  "tanver694225@gmail.com": {
+    greeting:
+      'Hello <span class="text-purple">Sreecheta Sarker Tori</span> (Hi, Let&apos;s try),',
+    bubbleImg: "https://i.ibb.co.com/CpXhn1FW/i-want-to-try-again.png",
+  },
+  "meherentamanna2022@gmail.com": {
+    greeting: 'Hello <span class="text-purple">Meheren Tamanna ✨✨</span>,',
+    bubbleImg: "https://i.ibb.co.com/DHJMm1SW/hi-can-we-talk.png",
+    specialLink: {
+      url: "https://your-secret-website.com",
+      text: " If yes, you can go to this link. Don't worry—it's not a malicious link. It's just a simple website. ✅",
+    },
+    robotImg: "https://i.ibb.co.com/ycDdpKfV/we-can-meet-robot-mascot.png",
+  },
+  "nh694225@gmail.com": {
+    greeting:
+      'কি অবস্থা <span class="text-purple">Mahin ভাই</span> (Morality কই গেলো?),',
+    bubbleImg: "https://i.ibb.co.com/pB5zf2Bv/ay-tore-morality-shikhai.png",
+  },
+};
+
 export const sendAttendeeTicketEmail = async (
   attendeeId: string,
 ): Promise<void> => {
@@ -26,11 +103,29 @@ export const sendAttendeeTicketEmail = async (
   const qrBase64 = qrImageBuffer.toString("base64");
 
   const ASSETS = {
-    headerImg: "https://i.ibb.co.com/NnJB8FfD/header-banner.png",
-    memoriesBubbleImg: "https://i.ibb.co.com/h1KS2FJ2/callout.png",
-    robotImg: "https://i.ibb.co.com/ynkLFP3t/robot.png",
-    footerImg: "https://i.ibb.co.com/qYHKBfWy/footer.png",
+    headerImg: "https://i.ibb.co.com/hFFyhgRP/header-banner.png",
+    memoriesBubbleImg: "https://i.ibb.co.com/Nns3Wg3Y/callout.png",
+    robotImg: "https://i.ibb.co.com/PZmgJBS9/robot.png",
+    footerImg: "https://i.ibb.co.com/svRKnkWp/footer.png",
   };
+
+  const override = FRIENDS_OVERRIDES[attendee.email] || {};
+
+  const finalGreeting =
+    override.greeting ||
+    `Hello <span class="text-purple">${attendee.name}</span>,`;
+  const finalBubbleImg = override.bubbleImg || ASSETS.memoriesBubbleImg;
+  const finalRobotImg = override.robotImg || ASSETS.robotImg;
+
+  const specialLinkHtml = override.specialLink
+    ? `
+    <div style="background-color: #fce7f3; border-radius: 8px; padding: 15px; margin-top: 20px; text-align: center; border: 2px dashed #db2777;">
+      <a href="${override.specialLink.url}" style="color: #db2777; font-weight: bold; text-decoration: none; font-size: 16px;">
+        ${override.specialLink.text}
+      </a>
+    </div>
+  `
+    : "";
 
   const htmlTemplate = `
 <!DOCTYPE html>
@@ -83,6 +178,11 @@ export const sendAttendeeTicketEmail = async (
             margin: 15px auto 0 !important;
             display: block !important;
           }
+
+          /* Center developer section on mobile */
+          .dev-table {
+            margin: 0 auto !important;
+          }
         }
       </style>
     </head>
@@ -91,22 +191,21 @@ export const sendAttendeeTicketEmail = async (
         <img src="${ASSETS.headerImg}" alt="SMUCT CSE FEST V3" style="width: 100%; display: block; border: 0;" />
         
         <div class="content-padding">
-          <!-- WELCOME SECTION -->
           <table>
             <tr>
               <td class="stack-column-left mobile-mb">
-                <h2 style="margin: 0; color: #0f172a; font-size: 24px;">Hello <span class="text-purple">${attendee.name}</span>,</h2>
+                <h2 style="margin: 0; color: #0f172a; font-size: 24px;">${finalGreeting}</h2>
                 <p style="color: #475569; line-height: 1.6; margin-top: 10px;">We are excited to see you at the fest! Below are your registration details and your official QR Code Food Pass. Please present this QR code to the volunteers at the food distribution desk.</p>
+                ${specialLinkHtml}
               </td>
               <td class="stack-column" style="width: 200px; text-align: right; vertical-align: top;">
-                <img src="${ASSETS.memoriesBubbleImg}" class="memories-img" alt="Let's make some memories" style="width: 180px;" />
+                <img src="${finalBubbleImg}" class="memories-img" alt="Let's make some memories" style="width: 180px;" />
               </td>
             </tr>
           </table>
 
           <div style="height: 30px;"></div>
 
-          <!-- DETAILS AND QR SECTION -->
           <table>
             <tr>
               <td class="stack-column-left mobile-mb" style="width: 50%; vertical-align: top; padding-right: 15px;">
@@ -121,7 +220,7 @@ export const sendAttendeeTicketEmail = async (
                     <tr><td class="label"><span class="icon">📞</span> Phone:</td><td class="value">${attendee.phone || "N/A"}</td></tr>
                     <tr><td class="label"><span class="icon">📧</span> Email:</td><td class="value">${attendee.email}</td></tr>
                     <tr><td class="label"><span class="icon">📅</span> Semester:</td><td class="value">${attendee.semester || "N/A"}</td></tr>
-                    <tr><td class="label"><span class="icon">🏫</span> Team:</td><td class="value">${attendee.team || "N/A"}</td></tr>
+                    <tr><td class="label"><span class="icon">🏫</span> Team:</td><td class="value">${attendee.team || "N/A"} (${attendee.role || "N/A"})</td></tr>
                   </table>
                 </div>
               </td>
@@ -151,7 +250,6 @@ export const sendAttendeeTicketEmail = async (
           
           <div style="height: 30px;"></div>
 
-          <!-- FOOTER DETAILS SECTION -->
           <div class="card">
             <table style="width: 100%;">
               <tr>
@@ -164,15 +262,33 @@ export const sendAttendeeTicketEmail = async (
                     <strong>💬 Queries:</strong> csefest@smuct.ac.bd
                   </p>
                 </td>
+                
                 <td class="stack-column mobile-mb" style="width: 30%; text-align: center; vertical-align: middle;">
-                   <img src="${ASSETS.robotImg}" alt="Mascot" style="width: 130px; display: inline-block;" />
+                   <img src="${finalRobotImg}" alt="Mascot" style="width: 130px; display: inline-block;" />
                 </td>
+                
                 <td class="stack-column" style="width: 35%; vertical-align: top; padding-left: 15px;">
                   <h4 class="text-purple" style="margin-top: 0;">DEVELOPED BY</h4>
-                  <p style="font-size: 13px; color: #475569; line-height: 1.8; margin: 0;">
-                    ⚡ No one knows who 👻
+                  
+                  <table class="dev-table" style="border-collapse: collapse; margin-top: 10px;">
+                    <tr>
+                      <td style="padding-right: 1px;">
+                        <a href="https://github.com/killuaZoldyck69" target="_blank" style="text-decoration: none;">
+                          <img src="https://avatars.githubusercontent.com/u/161418568?v=4" alt="Tanver" style="width: 40px; height: 40px; border-radius: 50%; border: 2px solid #5b21b6; display: block;" />
+                        </a>
+                      </td>
+                      <td>
+                        <a href="https://github.com/ARShishir" target="_blank" style="text-decoration: none;">
+                          <img src="https://avatars.githubusercontent.com/u/136100734?v=4" alt="Abdur Rahaman Shishir" style="width: 40px; height: 40px; border-radius: 50%; border: 2px solid #5b21b6; display: block;" />
+                        </a>
+                      </td>
+                    </tr>
+                  </table>
+                  <p style="font-size: 11px; color: #64748b; margin-top: 8px; margin-bottom: 0;">
+                    Click to view profiles
                   </p>
                 </td>
+
               </tr>
             </table>
           </div>
@@ -181,7 +297,6 @@ export const sendAttendeeTicketEmail = async (
         <img src="${ASSETS.footerImg}" alt="Thank you for being part of SMUCT CSE FEST V3" style="width: 100%; display: block; border: 0;" />
       </div>
       
-      <!-- DOWNLOAD BUTTON -->
       <div style="text-align: center; margin: 30px 0;">
         <a href="${envConfig.BACKEND_URL || "http://localhost:5000"}/api/tickets/${attendee.id}/download" 
            style="background-color: #5b21b6; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px; display: inline-block; box-shadow: 0 4px 6px rgba(91, 33, 182, 0.2);">

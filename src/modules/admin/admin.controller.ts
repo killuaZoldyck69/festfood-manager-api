@@ -36,7 +36,9 @@ import { ScanStatus } from "../../../prisma/generated/client";
 import { sendAttendeeTicketEmail } from "./services/email.service";
 import {
   getEmailProgressStats,
+  retryFailedEmails,
   startBackgroundEmailBatch,
+  stopBackgroundEmailBatch,
 } from "./services/emailWorker.service";
 import { prisma } from "../../lib";
 
@@ -266,5 +268,28 @@ export const handleGetEmailProgress = catchAsync(
   async (req: Request, res: Response) => {
     const stats = await getEmailProgressStats();
     res.status(200).json({ success: true, data: stats });
+  },
+);
+
+export const handleStopEmailBatch = catchAsync(
+  async (req: Request, res: Response) => {
+    stopBackgroundEmailBatch();
+
+    res.status(200).json({
+      success: true,
+      message:
+        "Email batch stop signal sent. The worker will halt after the current email finishes.",
+    });
+  },
+);
+
+export const handleRetryFailedEmails = catchAsync(
+  async (req: Request, res: Response) => {
+    const requeuedCount = await retryFailedEmails();
+
+    res.status(200).json({
+      success: true,
+      message: `Successfully re-queued ${requeuedCount} failed emails. The background worker has been restarted.`,
+    });
   },
 );

@@ -55,6 +55,7 @@ export const getVolunteerLogs = async (
             studentId: true,
             semester: true,
             team: true,
+            role: true,
           },
         },
         volunteer: {
@@ -76,6 +77,7 @@ export const getVolunteerLogs = async (
     university: log.attendee?.university || null,
     semester: log.attendee?.semester || null,
     team: log.attendee?.team || null,
+    role: log.attendee?.role || null,
     volunteerName: log.volunteer?.name || null,
     volunteerEmail: log.volunteer?.email || null,
   }));

@@ -10,7 +10,7 @@ export const startBackgroundEmailBatch = async (): Promise<void> => {
   isEmailWorkerRunning = true;
 
   try {
-    while (true) {
+    while (isEmailWorkerRunning) {
       const nextAttendee = await prisma.attendee.findFirst({
         where: { emailStatus: "PENDING" },
       });
@@ -36,12 +36,29 @@ export const startBackgroundEmailBatch = async (): Promise<void> => {
         });
       }
 
-      await delay(30000);
+      await delay(60 * 1000);
     }
   } catch (fatalError) {
     console.error("Fatal error in email worker:", fatalError);
     isEmailWorkerRunning = false;
   }
+};
+
+export const stopBackgroundEmailBatch = (): void => {
+  isEmailWorkerRunning = false;
+};
+
+export const retryFailedEmails = async (): Promise<number> => {
+  const result = await prisma.attendee.updateMany({
+    where: { emailStatus: "FAILED" },
+    data: { emailStatus: "PENDING" },
+  });
+
+  if (result.count > 0 && !isEmailWorkerRunning) {
+    startBackgroundEmailBatch();
+  }
+
+  return result.count;
 };
 
 export const getEmailProgressStats = async () => {

@@ -62,6 +62,7 @@ export const getSystemLogs = async (
             phone: true,
             semester: true,
             team: true,
+            role: true,
           },
         },
       },
@@ -84,6 +85,7 @@ export const getSystemLogs = async (
     phone: log.attendee?.phone || null,
     semester: log.attendee?.semester || null,
     team: log.attendee?.team || null,
+    role: log.attendee?.role || null,
   }));
 
   return {

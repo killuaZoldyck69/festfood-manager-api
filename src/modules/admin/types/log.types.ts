@@ -17,6 +17,7 @@ export interface FormattedLog {
   phone: string | null;
   semester: string | null;
   team: string | null;
+  role: string | null;
 }
 
 export interface LogFilterOptions {

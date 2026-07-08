@@ -13,6 +13,7 @@ export interface AttendeeTicketData {
   segment: string;
   semester: string;
   team: string;
+  role: string;
   qrToken: string;
 }
 
@@ -141,11 +142,11 @@ const drawDetails = (
       });
   };
 
-  const semSecString = `${attendee.semester || "N/A"} / ${attendee.team || "N/A"}`;
+  const semSecString = `${attendee.semester || "N/A"} / ${attendee.team || "N/A"} (${attendee.role || "N/A"})`;
 
   drawRow("Name:", attendee.name, 0, true);
   drawRow("ID:", attendee.studentId, 14);
-  drawRow("Sem/Sec:", semSecString, 28);
+  drawRow("Sem/Team:", semSecString, 28);
   drawRow("Email:", attendee.email, 42);
   drawRow("University:", attendee.university, 56);
   drawRow("Segment:", attendee.segment, 70);
@@ -202,7 +203,7 @@ const drawQrSection = async (
     .font("Helvetica-Oblique")
     .fillColor(COLORS.TEXT_MUTED)
     .text(
-      "Developed by Shishimaru",
+      "Developed by Abdur Rahaman Shishir",
       TICKET.START_X + TICKET.INFO_WIDTH,
       currentY + TICKET.HEIGHT - 15,
       { width: TICKET.QR_WIDTH, align: "center" },

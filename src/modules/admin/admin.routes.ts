@@ -16,8 +16,10 @@ import {
   handleGetLogFilters,
   handleGetLogs,
   handleManualOverride,
+  handleRetryFailedEmails,
   handleSendSingleEmail,
   handleStartEmailBatch,
+  handleStopEmailBatch,
   handleUpdateInventory,
   resetDatabase,
   resetLogistics,
@@ -71,6 +73,8 @@ router.delete("/volunteers/:id", deleteVolunteerController);
 router.get("/attendees/filters", handleGetAttendeeFilters);
 router.post("/attendees/:id/email", handleSendSingleEmail);
 router.post("/emails/start", handleStartEmailBatch);
+router.post("/emails/stop", handleStopEmailBatch);
+router.post("/emails/retry-failed", handleRetryFailedEmails);
 router.get("/emails/progress", handleGetEmailProgress);
 router.get("/logs/filters", handleGetLogFilters);
 
