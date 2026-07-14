@@ -301,6 +301,7 @@ export const prepareAllTicketsBackup = async (): Promise<string> => {
     segment: a.segment,
     semester: a.semester || "",
     team: a.team || "",
+    role: a.role || "",
     qrToken: a.qrToken,
   }));
 

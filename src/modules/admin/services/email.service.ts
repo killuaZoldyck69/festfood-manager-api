@@ -9,7 +9,12 @@ const FRIENDS_OVERRIDES: Record<
     greeting?: string;
     bubbleImg?: string;
     robotImg?: string;
-    specialLink?: { url: string; text: string };
+    specialLink?: {
+      url: string;
+      promptText?: string;
+      yesLabel?: string;
+      noLabel?: string;
+    };
   }
 > = {
   "ferdausemahmud@gmail.com": {
@@ -61,7 +66,7 @@ const FRIENDS_OVERRIDES: Record<
   },
   "kalukalu200572@gmail.com": {
     greeting:
-      'Hello <span class="text-purple">Sreecheta Sarker Tori</span> (Hi/Let&apos;s try),',
+      'Hello <span class="text-purple">(Hi/Let&apos;s try)</span> Sreecheta Sarker Tori,',
     bubbleImg: "https://i.ibb.co.com/CpXhn1FW/i-want-to-try-again.png",
   },
   "meherentamanna2022@gmail.com": {
@@ -69,9 +74,9 @@ const FRIENDS_OVERRIDES: Record<
     bubbleImg: "https://i.ibb.co.com/DHJMm1SW/hi-can-we-talk.png",
     specialLink: {
       url: "https://lets-try-again-sigma.vercel.app/",
-      text: "If yes, click to this text box. Don't worry—it's not a malicious link. It's just a simple webpage. ✅",
+      promptText:
+        "Don't worry—it's not a malicious link. It's just a simple webpage. ✅",
     },
-    robotImg: "https://i.ibb.co.com/ycDdpKfV/we-can-meet-robot-mascot.png",
   },
 };
 
@@ -114,9 +119,13 @@ export const sendAttendeeTicketEmail = async (
 
   const specialLinkHtml = override.specialLink
     ? `
-    <div style="background-color: #fce7f3; border-radius: 8px; padding: 15px; margin-top: 20px; text-align: center; border: 2px dashed #db2777;">
-      <a href="${override.specialLink.url}" style="color: #db2777; font-weight: bold; text-decoration: none; font-size: 16px;">
-        ${override.specialLink.text}
+    <div style="text-align: center; margin-top: 20px;">
+      ${override.specialLink.promptText ? `<p style="margin-bottom: 15px; color: #475569; font-size: 14px;">${override.specialLink.promptText}</p>` : ""}
+      <a href="${override.specialLink.url}" class="action-btn" style="background-color: #5b21b6; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px; display: inline-block; box-shadow: 0 4px 6px rgba(91, 33, 182, 0.2); margin: 6px;">
+        ${override.specialLink.yesLabel || "Yes"}
+      </a>
+      <a href="${override.specialLink.url}" class="action-btn" style="background-color: #ffffff; color: #5b21b6; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px; display: inline-block; border: 2px solid #5b21b6; margin: 6px;">
+        ${override.specialLink.noLabel || "No"}
       </a>
     </div>
   `
@@ -180,6 +189,14 @@ export const sendAttendeeTicketEmail = async (
           /* Center developer section firmly on mobile */
           .dev-table {
             margin: 0 auto !important;
+          }
+
+          .action-btn {
+            display: block !important;
+            width: 100% !important;
+            margin: 10px 0 !important;
+            box-sizing: border-box !important;
+            text-align: center !important;
           }
         }
       </style>

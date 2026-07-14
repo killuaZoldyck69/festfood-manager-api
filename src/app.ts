@@ -4,6 +4,7 @@ import helmet from "helmet";
 import pinoHttp from "pino-http";
 import { toNodeHandler } from "better-auth/node";
 import { auth } from "./lib";
+import { prisma } from "./lib/prisma";
 import { logger } from "./shared/logger";
 import { scanRoutes } from "./modules/scan";
 import { inventoryRoutes } from "./modules/inventory";
@@ -36,6 +37,21 @@ app.post("/api/auth/sign-up/email", (req: Request, res: Response) => {
       "Public registration is disabled. Only Admins can create volunteer accounts.",
     errorSources: [],
   });
+});
+
+app.post("/api/auth/sign-in/email", async (req: Request, res: Response, next) => {
+  try {
+    const { email } = req.body;
+    if (email && !email.includes("@")) {
+      const user = await prisma.user.findFirst({ where: { phone: email } });
+      if (user) {
+        req.body.email = user.email;
+      }
+    }
+  } catch (error) {
+    logger.error(error, "Error resolving phone number for login");
+  }
+  next();
 });
 
 app.all("/api/auth/{*any}", toNodeHandler(auth));

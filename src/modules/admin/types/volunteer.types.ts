@@ -2,6 +2,7 @@ export interface VolunteerListItem {
   id: string;
   name: string;
   email: string;
+  phone?: string | null;
   role: string;
   createdAt: Date;
   totalScans: number;

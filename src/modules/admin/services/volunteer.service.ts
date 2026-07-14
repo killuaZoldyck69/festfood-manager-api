@@ -10,10 +10,18 @@ export const registerVolunteerAccount = async (
   name: string,
   email: string,
   password: string,
+  phone?: string
 ): Promise<CreateVolunteerDTO> => {
-  const existingUser = await prisma.user.findUnique({ where: { email } });
+  const existingUser = await prisma.user.findFirst({
+    where: {
+      OR: [
+        { email },
+        ...(phone ? [{ phone }] : []),
+      ],
+    },
+  });
   if (existingUser) {
-    throw new AppError(400, "An account with this email already exists.");
+    throw new AppError(400, "An account with this email or phone already exists.");
   }
 
   const result = await auth.api.signUpEmail({
@@ -22,7 +30,8 @@ export const registerVolunteerAccount = async (
       password,
       name,
       role: "VOLUNTEER",
-    },
+      phone,
+    } as any,
   });
 
   return {
@@ -41,6 +50,7 @@ export const getVolunteersList = async (): Promise<VolunteerListItem[]> => {
       id: true,
       name: true,
       email: true,
+      phone: true,
       role: true,
       createdAt: true,
       _count: { select: { scanLogs: true } },
@@ -68,6 +78,7 @@ export const getVolunteersList = async (): Promise<VolunteerListItem[]> => {
       id: volunteer.id,
       name: volunteer.name,
       email: volunteer.email,
+      phone: volunteer.phone,
       role: volunteer.role || "VOLUNTEER",
       createdAt: volunteer.createdAt,
       totalScans: volunteer._count.scanLogs,

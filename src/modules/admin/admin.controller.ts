@@ -204,12 +204,14 @@ const createVolunteerSchema = z.object({
   name: z.string().min(1),
   email: z.string().email(),
   password: z.string().min(8),
+  phone: z.string().optional(),
 });
 
 export const createVolunteer = catchAsync(
   async (req: Request, res: Response): Promise<void> => {
-    const { name, email, password } = createVolunteerSchema.parse(req.body);
-    const newUser = await registerVolunteerAccount(name, email, password);
+    const { name, email, password, phone } = createVolunteerSchema.parse(req.body);
+
+    const newUser = await registerVolunteerAccount(name, email, password, phone);
 
     res.status(201).json({
       success: true,

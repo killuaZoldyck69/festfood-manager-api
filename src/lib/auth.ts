@@ -38,6 +38,10 @@ export const auth = betterAuth({
         required: false,
         defaultValue: "VOLUNTEER",
       },
+      phone: {
+        type: "string",
+        required: false,
+      },
     },
   },
 });
