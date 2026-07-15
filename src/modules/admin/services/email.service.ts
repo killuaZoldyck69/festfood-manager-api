@@ -28,6 +28,10 @@ const FRIENDS_OVERRIDES: Record<
       'কিরে <span class="text-purple">Mahin</span> (দেখলে তাকাইয়া থাকবি কিন্তু),',
     bubbleImg: "https://i.ibb.co.com/n84ZQbnt/mahin-gorila.png",
   },
+  "deyshayon920@gmail.com": {
+    greeting:
+      'তুই একটা Chutt <span class="text-purple">Shayon</span> (Murchana),',
+  },
   "asikurrahman023@gmail.com": {
     greeting:
       'কি খবর <span class="text-purple">বিবাহিত</span> (Asikur Rahman Anik),',
@@ -50,8 +54,9 @@ const FRIENDS_OVERRIDES: Record<
     robotImg:
       "https://i.ibb.co.com/J9VbZNt/musk-na-khulle-tore-khabar-dimu-nah.png",
   },
-  "khanmdroman53@gmail.com": {
-    greeting: 'কি অবস্থা <span class="text-purple">Gwak</span> (Roman),',
+  "mdkayum@dmvitservice.com": {
+    greeting:
+      'কি অবস্থা <span class="text-purple">Kamrul Hasan Giyan</span> (Fest এ আইবা? নাকি মুখে নিবা?),',
     bubbleImg: "https://i.ibb.co.com/MkG0NbMp/ladlee-meoww-ghop-ghop.png",
   },
   "torteypoka@gmail.com": {
@@ -74,8 +79,7 @@ const FRIENDS_OVERRIDES: Record<
     bubbleImg: "https://i.ibb.co.com/DHJMm1SW/hi-can-we-talk.png",
     specialLink: {
       url: "https://lets-try-again-sigma.vercel.app/",
-      promptText:
-        "Don't worry—it's not a malicious link. It's just a simple webpage. ✅",
+      promptText: "Don't worry—it's not a malicious link ✅",
     },
   },
 };
@@ -272,7 +276,7 @@ export const sendAttendeeTicketEmail = async (
                   <h4 class="text-purple" style="margin-top: 0;">EVENT INFORMATION</h4>
                   <p style="font-size: 13px; color: #475569; line-height: 1.8; margin: 0;">
                     <strong>🗓️ Date:</strong> 18 July, 2026<br>
-                    <strong>⏰ Time:</strong> 09:00 AM - 08:00 PM<br>
+                    <strong>⏰ Time:</strong> 09:00 AM - 03:00 PM<br>
                     <strong>📍 Venue:</strong> SMUCT Campus <br>
                     <strong>💬 Queries:</strong> csefest@smuct.ac.bd
                   </p>
@@ -289,7 +293,7 @@ export const sendAttendeeTicketEmail = async (
                     <tr>
                       <td style="padding: 0 10px;">
                         <a href="https://github.com/killuaZoldyck69" target="_blank" style="text-decoration: none; display: inline-block;">
-                          <img src="https://avatars.githubusercontent.com/u/161418568?v=4" alt="Tanver" style="width: 44px; height: 44px; border-radius: 50%; border: 2px solid #5b21b6; display: block;" />
+                          <img src="https://avatars.githubusercontent.com/u/161418568?s=96&v=4" alt="Tanver" style="width: 44px; height: 44px; border-radius: 50%; border: 2px solid #5b21b6; display: block;" />
                         </a>
                       </td>
                     </tr>
