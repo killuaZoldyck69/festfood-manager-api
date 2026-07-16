@@ -6,18 +6,21 @@ const paginationSchema = z.object({
 });
 
 export const inventoryBodySchema = z.object({
-  totalAvailable: z
-    .number({
-      message: "Total available count is required and must be a number",
-    })
-    .int("Total available must be an integer")
-    .nonnegative("Total available cannot be negative"),
+  totalBreakfastAvailable: z
+    .number()
+    .int()
+    .min(0, "Total breakfast available cannot be negative"),
+  totalLunchAvailable: z
+    .number()
+    .int()
+    .min(0, "Total lunch available cannot be negative"),
 });
 
 export const overrideBodySchema = z.object({
   attendeeId: z
     .string({ message: "Attendee ID is required and must be a valid string" })
     .uuid("Invalid Attendee ID format"),
+  mealType: z.enum(["BREAKFAST", "LUNCH", "FOOD"]).optional(),
 });
 
 export const getLogsQuerySchema = z.object({
@@ -27,6 +30,7 @@ export const getLogsQuerySchema = z.object({
   status: z.string().optional(),
   segment: z.string().optional(),
   volunteerEmail: z.string().optional(),
+  mealType: z.string().optional(),
 });
 
 export const getAttendeesQuerySchema = z.object({
@@ -36,4 +40,5 @@ export const getAttendeesQuerySchema = z.object({
   status: z.enum(["ALL", "CLAIMED", "PENDING"]).default("ALL"),
   segment: z.string().optional(),
   university: z.string().optional(),
+  mealType: z.string().optional(),
 });

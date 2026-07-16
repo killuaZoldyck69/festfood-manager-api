@@ -98,8 +98,8 @@ export const downloadTempPdf = catchAsync(
 
 export const handleUpdateInventory = catchAsync(
   async (req: Request, res: Response): Promise<void> => {
-    const { totalAvailable } = inventoryBodySchema.parse(req.body);
-    await updateLogisticsInventory(totalAvailable);
+    const { totalBreakfastAvailable, totalLunchAvailable } = inventoryBodySchema.parse(req.body);
+    await updateLogisticsInventory(totalBreakfastAvailable, totalLunchAvailable);
 
     res.status(200).json({
       success: true,
@@ -126,11 +126,11 @@ export const handleGetAttendees = catchAsync(
 
 export const handleManualOverride = catchAsync(
   async (req: Request, res: Response): Promise<void> => {
-    const { attendeeId } = overrideBodySchema.parse(req.body);
+    const { attendeeId, mealType } = overrideBodySchema.parse(req.body);
 
     if (!req.user) throw new AppError(401, "Unauthorized.");
 
-    const result = await processManualOverride(attendeeId, req.user.id);
+    const result = await processManualOverride(attendeeId, req.user.id, mealType);
 
     res.status(200).json({
       success: true,
@@ -152,6 +152,7 @@ export const handleGetLogs = catchAsync(
       status,
       segment: filters.segment,
       volunteerEmail: filters.volunteerEmail,
+      mealType: filters.mealType,
     });
 
     res.status(200).json(result);

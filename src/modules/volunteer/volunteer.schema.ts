@@ -6,4 +6,5 @@ export const getVolunteerLogsSchema = z.object({
   limit: z.coerce.number().min(1).max(100).default(10),
   status: z.nativeEnum(ScanStatus).optional(),
   search: z.string().optional(),
+  mealType: z.string().optional(),
 });

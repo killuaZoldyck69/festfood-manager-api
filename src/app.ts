@@ -2,6 +2,7 @@ import express, { Request, Response } from "express";
 import cors from "cors";
 import helmet from "helmet";
 import pinoHttp from "pino-http";
+import rateLimit from "express-rate-limit";
 import { toNodeHandler } from "better-auth/node";
 import { auth } from "./lib";
 import { prisma } from "./lib/prisma";
@@ -29,6 +30,13 @@ app.use(
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ limit: "10mb", extended: true }));
 app.use(pinoHttp({ logger }));
+
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, 
+  max: 500, 
+  message: { success: false, message: "Too many requests, please try again later." },
+});
+app.use(limiter);
 
 app.post("/api/auth/sign-up/email", (req: Request, res: Response) => {
   res.status(403).json({

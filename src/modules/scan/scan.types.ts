@@ -5,6 +5,7 @@ export type ScanResult =
   | {
       status: "DUPLICATE";
       message: string;
+      mealType?: string;
       attendee: {
         name: string;
         email: string;
@@ -17,5 +18,5 @@ export type ScanResult =
         claimedAt: Date | null;
       };
     }
-  | { status: "SUCCESS"; message: string; attendee: Attendee }
+  | { status: "SUCCESS"; message: string; attendee: Attendee; mealType?: string }
   | { status: "DEPLETED"; message: string };

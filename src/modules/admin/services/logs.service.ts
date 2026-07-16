@@ -22,6 +22,10 @@ export const getSystemLogs = async (
     whereClause.volunteer = { email: filters.volunteerEmail };
   }
 
+  if (filters.mealType && filters.mealType !== "ALL") {
+    whereClause.mealType = filters.mealType;
+  }
+
   const attendeeFilter: Prisma.AttendeeWhereInput = {};
 
   if (filters.segment && filters.segment !== "ALL") {
@@ -86,6 +90,7 @@ export const getSystemLogs = async (
     semester: log.attendee?.semester || null,
     team: log.attendee?.team || null,
     role: log.attendee?.role || null,
+    mealType: log.mealType || null,
   }));
 
   return {

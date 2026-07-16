@@ -5,27 +5,41 @@ export const getInventoryStats = async (): Promise<InventoryStats> => {
   const [
     logisticsConfig,
     totalServed,
+    totalBreakfastServed,
+    totalLunchServed,
     duplicateScans,
     invalidTickets,
     totalParticipants,
   ] = await Promise.all([
     prisma.eventLogistics.findUnique({ where: { id: 1 } }),
     prisma.attendee.count({ where: { foodClaimed: true } }),
+    prisma.attendee.count({ where: { breakfastClaimed: true } }),
+    prisma.attendee.count({ where: { lunchClaimed: true } }),
     prisma.scanLog.count({ where: { status: "DUPLICATE" } }),
     prisma.scanLog.count({ where: { status: "INVALID" } }),
     prisma.attendee.count(),
   ]);
 
-  const totalAvailable = logisticsConfig?.totalAvailable || 0;
+  const totalBreakfastAvailable = logisticsConfig?.totalBreakfastAvailable || 0;
+  const totalLunchAvailable = logisticsConfig?.totalLunchAvailable || 0;
 
   return {
-    totalAvailable,
+    totalBreakfastAvailable,
+    totalLunchAvailable,
     totalServed,
+    totalBreakfastServed,
+    totalLunchServed,
     totalParticipants,
     duplicateScans,
     invalidTickets,
     percentageClaimed:
-      totalAvailable > 0 ? Math.round((totalServed / totalAvailable) * 100) : 0,
+      totalBreakfastAvailable > 0 && totalLunchAvailable > 0
+        ? Math.round((totalServed / (totalBreakfastAvailable + totalLunchAvailable)) * 100)
+        : 0,
+    breakfastPercentageClaimed:
+      totalBreakfastAvailable > 0 ? Math.round((totalBreakfastServed / totalBreakfastAvailable) * 100) : 0,
+    lunchPercentageClaimed:
+      totalLunchAvailable > 0 ? Math.round((totalLunchServed / totalLunchAvailable) * 100) : 0,
   };
 };
 

@@ -19,6 +19,7 @@ export const handleGetVolunteerLogs = catchAsync(
       {
         status: filters.status,
         search: filters.search,
+        mealType: filters.mealType,
       },
     );
 

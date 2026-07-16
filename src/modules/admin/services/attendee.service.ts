@@ -114,6 +114,9 @@ export const getAttendeesList = async (
   if (filters.status === "CLAIMED") whereClause.foodClaimed = true;
   else if (filters.status === "UNCLAIMED") whereClause.foodClaimed = false;
 
+  if (filters.mealType === "BREAKFAST") whereClause.breakfastClaimed = true;
+  else if (filters.mealType === "LUNCH") whereClause.lunchClaimed = true;
+
   if (filters.segment && filters.segment !== "ALL") {
     whereClause.segment = filters.segment;
   }
@@ -153,6 +156,10 @@ export const getAttendeesList = async (
 
   const formattedAttendees: AttendeeListItem[] = attendees.map((attendee) => {
     const successLog = attendee.scanLogs[0];
+    
+    const breakfastLog = attendee.scanLogs.find(log => log.mealType === "BREAKFAST" || log.mealType === "FOOD" || log.mealType === "OLD");
+    const lunchLog = attendee.scanLogs.find(log => log.mealType === "LUNCH" || log.mealType === "FOOD" || log.mealType === "OLD");
+
     return {
       id: attendee.id,
       name: attendee.name,
@@ -168,11 +175,17 @@ export const getAttendeesList = async (
       qrToken: attendee.qrToken,
       emailStatus: attendee.emailStatus,
       foodClaimed: attendee.foodClaimed,
+      breakfastClaimed: attendee.breakfastClaimed,
+      breakfastClaimedAt: attendee.breakfastClaimedAt,
+      lunchClaimed: attendee.lunchClaimed,
+      lunchClaimedAt: attendee.lunchClaimedAt,
       claimedAt: attendee.claimedAt,
       createdAt: attendee.createdAt,
       updatedAt: attendee.updatedAt,
       scannerName: successLog?.volunteer?.name || null,
       scannerRole: successLog?.volunteer?.role || null,
+      breakfastScannerName: breakfastLog?.volunteer?.name || null,
+      lunchScannerName: lunchLog?.volunteer?.name || null,
     };
   });
 
@@ -191,31 +204,68 @@ export const getAttendeesList = async (
 export const processManualOverride = async (
   attendeeId: string,
   adminId: string,
+  mealType: "BREAKFAST" | "LUNCH" | "FOOD" = "FOOD"
 ): Promise<AttendeeListItem> => {
   const attendee = await prisma.attendee.findUnique({
     where: { id: attendeeId },
   });
 
   if (!attendee) throw new AppError(404, "Attendee not found.");
-  if (attendee.foodClaimed) {
+  
+  if (mealType === "BREAKFAST" && attendee.breakfastClaimed) {
+    throw new AppError(409, "Attendee has already claimed their breakfast.");
+  } else if (mealType === "LUNCH" && attendee.lunchClaimed) {
+    throw new AppError(409, "Attendee has already claimed their lunch.");
+  } else if (mealType === "FOOD" && attendee.foodClaimed) {
     throw new AppError(409, "Attendee has already claimed their food.");
   }
 
   return await prisma.$transaction(async (tx) => {
     const logistics = await tx.eventLogistics.findUnique({ where: { id: 1 } });
 
-    if (!logistics || logistics.totalAvailable <= 0) {
-      throw new AppError(400, "Inventory depleted. No food available.");
+    const totalBreakfastServed = await tx.attendee.count({ where: { breakfastClaimed: true } });
+    const totalLunchServed = await tx.attendee.count({ where: { lunchClaimed: true } });
+
+    if (!logistics) {
+      throw new AppError(400, "Event logistics not configured.");
     }
 
-    await tx.eventLogistics.update({
-      where: { id: 1 },
-      data: { totalAvailable: { decrement: 1 } },
+    if (mealType === "BREAKFAST" && totalBreakfastServed >= logistics.totalBreakfastAvailable) {
+      throw new AppError(400, "Breakfast inventory depleted. No food available.");
+    } else if (mealType === "LUNCH" && totalLunchServed >= logistics.totalLunchAvailable) {
+      throw new AppError(400, "Lunch inventory depleted. No food available.");
+    }
+
+    let whereClause: any = { id: attendeeId };
+    let updateData: any = { foodClaimed: true, claimedAt: new Date() };
+
+    if (mealType === "BREAKFAST") {
+      whereClause.breakfastClaimed = false;
+      updateData.breakfastClaimed = true;
+      updateData.breakfastClaimedAt = new Date();
+    } else if (mealType === "LUNCH") {
+      whereClause.lunchClaimed = false;
+      updateData.lunchClaimed = true;
+      updateData.lunchClaimedAt = new Date();
+    } else {
+      whereClause.foodClaimed = false;
+      updateData.breakfastClaimed = true;
+      updateData.breakfastClaimedAt = new Date();
+      updateData.lunchClaimed = true;
+      updateData.lunchClaimedAt = new Date();
+    }
+
+    const updateResult = await tx.attendee.updateMany({
+      where: whereClause,
+      data: updateData,
     });
 
-    const updatedAttendee = await tx.attendee.update({
-      where: { id: attendeeId },
-      data: { foodClaimed: true, claimedAt: new Date() },
+    if (updateResult.count === 0) {
+      throw new AppError(409, "Attendee has already claimed their food concurrently.");
+    }
+
+    const updatedAttendee = await tx.attendee.findUnique({
+      where: { id: attendeeId }
     });
 
     await tx.scanLog.create({
@@ -223,14 +273,15 @@ export const processManualOverride = async (
         status: "MANUAL_OVERRIDE",
         volunteerId: adminId,
         attendeeId: attendee.id,
-        scannedToken: attendee.qrToken,
+        mealType: mealType,
+        scannedToken: mealType === "BREAKFAST" ? `${attendee.qrToken}-B` : mealType === "LUNCH" ? `${attendee.qrToken}-L` : attendee.qrToken,
       },
     });
 
     return {
-      ...updatedAttendee,
-      semester: updatedAttendee.semester || "",
-      team: updatedAttendee.team || "",
+      ...updatedAttendee!,
+      semester: updatedAttendee!.semester || "",
+      team: updatedAttendee!.team || "",
       scannerName: null,
       scannerRole: null,
     };

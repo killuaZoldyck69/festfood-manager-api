@@ -107,10 +107,14 @@ model Attendee {
   role       String
   segment    String
 
-  qrToken     String    @unique
-  foodClaimed Boolean   @default(false)
-  claimedAt   DateTime?
-  emailStatus String    @default("PENDING")
+  qrToken            String    @unique
+  foodClaimed        Boolean   @default(false)
+  claimedAt          DateTime?
+  breakfastClaimed   Boolean   @default(false)
+  breakfastClaimedAt DateTime?
+  lunchClaimed       Boolean   @default(false)
+  lunchClaimedAt     DateTime?
+  emailStatus        String    @default("PENDING")
 
   scanLogs ScanLog[]
 
@@ -131,10 +135,12 @@ model ScanLog {
 
   scannedToken String?
   scannedAt    DateTime @default(now())
+  mealType     String   @default("FOOD")
 }
 
 model EventLogistics {
-  id             Int      @id @default(1)
-  totalAvailable Int      @default(0)
-  updatedAt      DateTime @updatedAt
+  id                      Int      @id @default(1)
+  totalBreakfastAvailable Int      @default(0)
+  totalLunchAvailable     Int      @default(0)
+  updatedAt               DateTime @updatedAt
 }

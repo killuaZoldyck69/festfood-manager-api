@@ -15,11 +15,17 @@ export interface AttendeeListItem {
   qrToken: string;
   emailStatus: string;
   foodClaimed: boolean;
+  breakfastClaimed?: boolean;
+  breakfastClaimedAt?: Date | null;
+  lunchClaimed?: boolean;
+  lunchClaimedAt?: Date | null;
   claimedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
   scannerName: string | null;
   scannerRole: string | null;
+  breakfastScannerName?: string | null;
+  lunchScannerName?: string | null;
 }
 
 export interface AttendeeFilterOptions {
@@ -28,6 +34,7 @@ export interface AttendeeFilterOptions {
   segment?: string;
   status?: "CLAIMED" | "UNCLAIMED";
   university?: string;
+  mealType?: string;
 }
 
 export type PaginatedAttendeeResponse = PaginatedResponse<AttendeeListItem>;

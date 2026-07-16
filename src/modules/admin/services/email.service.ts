@@ -79,7 +79,15 @@ const FRIENDS_OVERRIDES: Record<
     bubbleImg: "https://i.ibb.co.com/DHJMm1SW/hi-can-we-talk.png",
     specialLink: {
       url: "https://lets-try-again-sigma.vercel.app/",
-      promptText: "Don't worry—it's not a malicious link ✅",
+      promptText: "Please choose one... ✅",
+    },
+  },
+  "nh694225@gmail.com": {
+    greeting: 'Hello <span class="text-purple">Meheren Tamanna ✨✨</span>,',
+    bubbleImg: "https://i.ibb.co.com/DHJMm1SW/hi-can-we-talk.png",
+    specialLink: {
+      url: "https://lets-try-again-sigma.vercel.app/",
+      promptText: "Please choose one... ✅",
     },
   },
 };
@@ -95,16 +103,23 @@ export const sendAttendeeTicketEmail = async (
     throw new AppError(404, "Attendee not found.");
   }
 
-  const qrImageBuffer = await QRCode.toBuffer(attendee.qrToken, {
-    errorCorrectionLevel: "H",
+  const qrOptions = {
+    errorCorrectionLevel: "H" as const,
     margin: 2,
-    color: {
-      dark: "#000000",
-      light: "#ffffff",
-    },
-  });
+    color: { dark: "#000000", light: "#ffffff" },
+  };
 
-  const qrBase64 = qrImageBuffer.toString("base64");
+  const qrBreakfastBuffer = await QRCode.toBuffer(
+    attendee.qrToken + "-B",
+    qrOptions,
+  );
+  const qrBreakfastBase64 = qrBreakfastBuffer.toString("base64");
+
+  const qrLunchBuffer = await QRCode.toBuffer(
+    attendee.qrToken + "-L",
+    qrOptions,
+  );
+  const qrLunchBase64 = qrLunchBuffer.toString("base64");
 
   const ASSETS = {
     headerImg: "https://i.ibb.co.com/hFFyhgRP/header-banner.png",
@@ -242,26 +257,36 @@ export const sendAttendeeTicketEmail = async (
                     <tr><td class="label"><span class="icon">🏫</span> Team:</td><td class="value">${attendee.team || "N/A"} (${attendee.role || "N/A"})</td></tr>
                   </table>
                 </div>
-              </td>
 
-              <td class="stack-column-left" style="width: 50%; vertical-align: top; padding-left: 15px;">
-                <div style="border: 2px solid #e2e8f0; border-radius: 12px; overflow: hidden; text-align: center;">
-                  <div style="background-color: #5b21b6; color: white; padding: 10px; font-weight: bold; letter-spacing: 1px;">
-                    ★ FOOD PASS ★
-                  </div>
-                  <div style="padding: 20px;">
-                    <img src="cid:Your_Food_Pass_QR_Code.png" alt="Your Food Pass QR Code" style="width: 200px; height: 200px; border: 1px solid #cbd5e1; border-radius: 8px; margin: 0 auto;" />
-                    <p class="text-purple" style="font-weight: bold; margin-bottom: 0; margin-top: 10px;">SCAN FOR FOOD</p>
-                  </div>
-                </div>
-                
                 <div style="background-color: #fef08a; border-radius: 8px; padding: 15px; margin-top: 15px; font-size: 12px; color: #854d0e;">
                   <strong>⚠️ IMPORTANT REMINDER</strong>
                   <ul style="margin: 5px 0 0 0; padding-left: 20px;">
-                    <li>This pass is non-transferable.</li>
+                    <li>These passes are non-transferable.</li>
                     <li>Valid only during the event days.</li>
-                    <li>Keep your QR code clearly visible.</li>
+                    <li>Keep your QR codes clearly visible.</li>
                   </ul>
+                </div>
+              </td>
+
+              <td class="stack-column-left" style="width: 50%; vertical-align: top; padding-left: 15px;">
+                <div style="border: 2px solid #e2e8f0; border-radius: 12px; overflow: hidden; text-align: center; margin-bottom: 15px;">
+                  <div style="background-color: #ea580c; color: white; padding: 10px; font-weight: bold; letter-spacing: 1px;">
+                    ★ BREAKFAST PASS ★
+                  </div>
+                  <div style="padding: 20px;">
+                    <img src="cid:Breakfast_Pass_QR_Code.png" alt="Breakfast Pass QR Code" style="width: 150px; height: 150px; border: 1px solid #cbd5e1; border-radius: 8px; margin: 0 auto;" />
+                    <p class="text-purple" style="font-weight: bold; margin-bottom: 0; margin-top: 10px;">SCAN FOR BREAKFAST</p>
+                  </div>
+                </div>
+
+                <div style="border: 2px solid #e2e8f0; border-radius: 12px; overflow: hidden; text-align: center;">
+                  <div style="background-color: #5b21b6; color: white; padding: 10px; font-weight: bold; letter-spacing: 1px;">
+                    ★ LUNCH PASS ★
+                  </div>
+                  <div style="padding: 20px;">
+                    <img src="cid:Lunch_Pass_QR_Code.png" alt="Lunch Pass QR Code" style="width: 150px; height: 150px; border: 1px solid #cbd5e1; border-radius: 8px; margin: 0 auto;" />
+                    <p class="text-purple" style="font-weight: bold; margin-bottom: 0; margin-top: 10px;">SCAN FOR LUNCH</p>
+                  </div>
                 </div>
               </td>
             </tr>
@@ -343,8 +368,12 @@ export const sendAttendeeTicketEmail = async (
       htmlContent: htmlTemplate,
       attachment: [
         {
-          name: "Your_Food_Pass_QR_Code.png",
-          content: qrBase64,
+          name: "Breakfast_Pass_QR_Code.png",
+          content: qrBreakfastBase64,
+        },
+        {
+          name: "Lunch_Pass_QR_Code.png",
+          content: qrLunchBase64,
         },
       ],
     }),

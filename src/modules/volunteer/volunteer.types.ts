@@ -15,6 +15,7 @@ export interface VolunteerLogEntry {
   team: string | null;
   volunteerName: string | null;
   volunteerEmail: string | null;
+  mealType: string | null;
 }
 
 export type PaginatedVolunteerLogs = PaginatedResponse<VolunteerLogEntry>;

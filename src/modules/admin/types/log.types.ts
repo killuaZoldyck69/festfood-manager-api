@@ -18,6 +18,7 @@ export interface FormattedLog {
   semester: string | null;
   team: string | null;
   role: string | null;
+  mealType: string | null;
 }
 
 export interface LogFilterOptions {
@@ -25,5 +26,6 @@ export interface LogFilterOptions {
   search?: string;
   segment?: string;
   volunteerEmail?: string;
+  mealType?: string;
 }
 export type PaginatedLogResponse = PaginatedResponse<FormattedLog>;

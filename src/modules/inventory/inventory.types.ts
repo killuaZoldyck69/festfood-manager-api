@@ -1,10 +1,15 @@
 export interface InventoryStats {
-  totalAvailable: number;
+  totalBreakfastAvailable: number;
+  totalLunchAvailable: number;
   totalServed: number;
+  totalBreakfastServed: number;
+  totalLunchServed: number;
   totalParticipants: number;
   duplicateScans: number;
   invalidTickets: number;
   percentageClaimed: number;
+  breakfastPercentageClaimed: number;
+  lunchPercentageClaimed: number;
 }
 
 export interface SystemHealth {

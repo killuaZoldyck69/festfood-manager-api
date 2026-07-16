@@ -6,6 +6,7 @@ import { PaginatedVolunteerLogs } from "./volunteer.types";
 export interface VolunteerLogFilterOptions {
   status?: ScanStatus;
   search?: string;
+  mealType?: string;
 }
 
 export const getVolunteerLogs = async (
@@ -20,6 +21,10 @@ export const getVolunteerLogs = async (
 
   if (filters.status) {
     whereClause.status = filters.status;
+  }
+
+  if (filters.mealType && filters.mealType !== "ALL") {
+    whereClause.mealType = filters.mealType;
   }
 
   const attendeeFilter: Prisma.AttendeeWhereInput = {};
@@ -80,6 +85,7 @@ export const getVolunteerLogs = async (
     role: log.attendee?.role || null,
     volunteerName: log.volunteer?.name || null,
     volunteerEmail: log.volunteer?.email || null,
+    mealType: log.mealType || null,
   }));
 
   return {

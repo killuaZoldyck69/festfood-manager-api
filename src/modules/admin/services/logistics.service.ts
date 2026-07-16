@@ -1,19 +1,20 @@
 import { prisma } from "../../../lib/prisma";
 
 export const updateLogisticsInventory = async (
-  totalAvailable: number,
+  totalBreakfastAvailable: number,
+  totalLunchAvailable: number,
 ): Promise<void> => {
   await prisma.eventLogistics.upsert({
     where: { id: 1 },
-    update: { totalAvailable },
-    create: { id: 1, totalAvailable },
+    update: { totalBreakfastAvailable, totalLunchAvailable },
+    create: { id: 1, totalBreakfastAvailable, totalLunchAvailable },
   });
 };
 
 export const resetEventInventory = async (): Promise<void> => {
   await prisma.eventLogistics.upsert({
     where: { id: 1 },
-    update: { totalAvailable: 0 },
-    create: { id: 1, totalAvailable: 0 },
+    update: { totalBreakfastAvailable: 0, totalLunchAvailable: 0 },
+    create: { id: 1, totalBreakfastAvailable: 0, totalLunchAvailable: 0 },
   });
 };

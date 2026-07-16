@@ -96,14 +96,18 @@ const drawHeader = (
     .text(subtitleText, textStartX, currentY + 38);
 };
 
-const drawBadge = (doc: PDFKit.PDFDocument, currentY: number): void => {
-  doc.rect(TICKET.START_X + 15, currentY + 62, 80, 18).fill(COLORS.BADGE_BG);
+const drawBadge = (doc: PDFKit.PDFDocument, currentY: number, passType: string = "FOOD PASS"): void => {
+  const badgeWidth = passType.length > 10 ? 110 : 80;
+  
+  const badgeColor = passType === "LUNCH PASS" ? "#6d28d9" : COLORS.BADGE_BG;
+
+  doc.rect(TICKET.START_X + 15, currentY + 62, badgeWidth, 18).fill(badgeColor);
   doc
     .fillColor(COLORS.TEXT_WHITE)
     .fontSize(9)
     .font("Helvetica-Bold")
-    .text("FOOD PASS", TICKET.START_X + 15, currentY + 67, {
-      width: 80,
+    .text(passType, TICKET.START_X + 15, currentY + 67, {
+      width: badgeWidth,
       align: "center",
       characterSpacing: 1,
     });
@@ -157,6 +161,7 @@ const drawQrSection = async (
   currentY: number,
   attendee: AttendeeTicketData,
   qrLogoBuffer: Buffer | null,
+  passType: "BREAKFAST" | "LUNCH" | "FOOD" = "FOOD"
 ): Promise<void> => {
   doc
     .rect(
@@ -167,16 +172,19 @@ const drawQrSection = async (
     )
     .fillAndStroke(COLORS.TEXT_WHITE, COLORS.STROKE_DARK);
 
+  const textColor = passType === "LUNCH" ? "#6d28d9" : passType === "BREAKFAST" ? COLORS.BADGE_BG : COLORS.STROKE_DARK;
+
   doc
-    .fillColor(COLORS.STROKE_DARK)
+    .fillColor(textColor)
     .fontSize(10)
     .font("Helvetica-Bold")
-    .text("SCAN FOR FOOD", TICKET.START_X + TICKET.INFO_WIDTH, currentY + 15, {
+    .text(`SCAN FOR ${passType}`, TICKET.START_X + TICKET.INFO_WIDTH, currentY + 15, {
       width: TICKET.QR_WIDTH,
       align: "center",
     });
 
-  const qrImage = await QRCode.toBuffer(attendee.qrToken, {
+  const qrSuffix = passType === "BREAKFAST" ? "-B" : passType === "LUNCH" ? "-L" : "";
+  const qrImage = await QRCode.toBuffer(attendee.qrToken + qrSuffix, {
     errorCorrectionLevel: "H",
     margin: 1,
   });
@@ -234,8 +242,13 @@ export const buildPdfTicketsToDisk = async (
 
   doc.pipe(writeStream);
 
-  for (let i = 0; i < attendees.length; i++) {
-    const attendee = attendees[i];
+  const ticketsToPrint = attendees.flatMap(a => [
+    { attendee: a, passType: "BREAKFAST" as const },
+    { attendee: a, passType: "LUNCH" as const }
+  ]);
+
+  for (let i = 0; i < ticketsToPrint.length; i++) {
+    const { attendee, passType } = ticketsToPrint[i];
 
     if (i > 0 && i % 4 === 0) doc.addPage();
 
@@ -244,9 +257,9 @@ export const buildPdfTicketsToDisk = async (
 
     drawBackground(doc, currentY, bannerBuffer);
     drawHeader(doc, currentY, deptLogoBuffer);
-    drawBadge(doc, currentY);
+    drawBadge(doc, currentY, `${passType} PASS`);
     drawDetails(doc, currentY, attendee);
-    await drawQrSection(doc, currentY, attendee, qrLogoBuffer);
+    await drawQrSection(doc, currentY, attendee, qrLogoBuffer, passType);
   }
 
   doc.end();
