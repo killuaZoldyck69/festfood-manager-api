@@ -9,6 +9,7 @@ import {
   uploadAttendeesFromCsv,
   getAttendeesList,
   processManualOverride,
+  processManualRevoke,
   wipeAllAttendees,
   getAttendeeFilterOptions,
   prepareAllTicketsBackup,
@@ -135,6 +136,22 @@ export const handleManualOverride = catchAsync(
     res.status(200).json({
       success: true,
       message: "Manual override successful. Food marked as claimed.",
+      data: result,
+    });
+  },
+);
+
+export const handleManualRevoke = catchAsync(
+  async (req: Request, res: Response): Promise<void> => {
+    const { attendeeId, mealType } = overrideBodySchema.parse(req.body);
+
+    if (!req.user) throw new AppError(401, "Unauthorized.");
+
+    const result = await processManualRevoke(attendeeId, req.user.id, mealType);
+
+    res.status(200).json({
+      success: true,
+      message: "Manual revoke successful. Food claim removed.",
       data: result,
     });
   },

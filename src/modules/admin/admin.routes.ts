@@ -16,6 +16,7 @@ import {
   handleGetLogFilters,
   handleGetLogs,
   handleManualOverride,
+  handleManualRevoke,
   handleRetryFailedEmails,
   handleSendSingleEmail,
   handleStartEmailBatch,
@@ -59,6 +60,7 @@ router.post("/tickets/generate", handleGenerateTickets);
 router.put("/inventory", handleUpdateInventory);
 router.get("/attendees", handleGetAttendees);
 router.post("/override", handleManualOverride);
+router.post("/revoke", handleManualRevoke);
 router.get("/logs", handleGetLogs);
 router.get("/tickets/download-temp/:filename", downloadTempPdf);
 
