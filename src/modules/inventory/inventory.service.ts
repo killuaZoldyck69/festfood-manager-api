@@ -4,7 +4,6 @@ import { InventoryStats, SystemHealth } from "./inventory.types";
 export const getInventoryStats = async (): Promise<InventoryStats> => {
   const [
     logisticsConfig,
-    totalServed,
     totalBreakfastServed,
     totalLunchServed,
     duplicateScans,
@@ -12,13 +11,14 @@ export const getInventoryStats = async (): Promise<InventoryStats> => {
     totalParticipants,
   ] = await Promise.all([
     prisma.eventLogistics.findUnique({ where: { id: 1 } }),
-    prisma.attendee.count({ where: { foodClaimed: true } }),
     prisma.attendee.count({ where: { breakfastClaimed: true } }),
     prisma.attendee.count({ where: { lunchClaimed: true } }),
     prisma.scanLog.count({ where: { status: "DUPLICATE" } }),
     prisma.scanLog.count({ where: { status: "INVALID" } }),
     prisma.attendee.count(),
   ]);
+
+  const totalServed = totalBreakfastServed + totalLunchServed;
 
   const totalBreakfastAvailable = logisticsConfig?.totalBreakfastAvailable || 0;
   const totalLunchAvailable = logisticsConfig?.totalLunchAvailable || 0;

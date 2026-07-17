@@ -95,9 +95,9 @@ export const processScan = async (
         throw new AppError(400, "Event logistics not configured.");
       }
 
-      if (mealType === "BREAKFAST" && totalBreakfastServed >= logistics.totalBreakfastAvailable) {
+      if (mealType === "BREAKFAST" && totalBreakfastServed > logistics.totalBreakfastAvailable) {
         throw new AppError(400, "Breakfast inventory depleted. No food available.");
-      } else if (mealType === "LUNCH" && totalLunchServed >= logistics.totalLunchAvailable) {
+      } else if (mealType === "LUNCH" && totalLunchServed > logistics.totalLunchAvailable) {
         throw new AppError(400, "Lunch inventory depleted. No food available.");
       }
 
