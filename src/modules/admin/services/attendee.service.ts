@@ -365,7 +365,9 @@ export const processManualRevoke = async (
     await tx.scanLog.deleteMany({
       where: {
         attendeeId: attendeeId,
-        mealType: mealType,
+        mealType: {
+          in: [mealType, "FOOD"],
+        },
       },
     });
 
